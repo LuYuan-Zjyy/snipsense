@@ -528,6 +528,113 @@ button {
   font-size: 8.5px;
 }
 
+.related {
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.related-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 5px;
+}
+
+.related-count {
+  margin-left: auto;
+  color: var(--faint);
+  font-size: 8.5px;
+}
+
+.related-group {
+  padding: 0 5px 5px;
+}
+
+.related-label {
+  padding: 3px 5px 2px;
+  color: var(--muted);
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+}
+
+.related-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 6px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.related-item:hover {
+  background: var(--surface-hover);
+}
+
+.related-item:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: -1px;
+}
+
+.related-file {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.related-why,
+.related-snippet {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 8.5px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.related-snippet {
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.related-line {
+  flex: 0 0 auto;
+  margin-left: 5px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 8px;
+}
+
+.related-item > .related-line {
+  grid-row: 1;
+  grid-column: 2;
+  margin-left: 0;
+  padding-top: 1px;
+}
+
+.related-item.usage .related-file {
+  color: var(--fg);
+}
+
+.related-note {
+  padding: 0 10px 7px;
+  color: var(--faint);
+  font-size: 8px;
+}
+
 .gist-card {
   position: relative;
   margin-bottom: 12px;

@@ -14,6 +14,7 @@ export interface CardActions {
   pin(value: boolean): void;
   copy(): void;
   openFile(): void;
+  openRelated(uri: string, line: number): void;
   openLink(url: string): void;
   clearCache(): void;
 }
@@ -24,6 +25,8 @@ interface UiMessage {
   value?: unknown;
   kind?: unknown;
   url?: unknown;
+  uri?: unknown;
+  line?: unknown;
 }
 
 export class CardViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
@@ -51,6 +54,8 @@ export class CardViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       needsSetup: false,
       cached: false,
       conversation: [],
+      graph: null,
+      multiFile: vscode.workspace.getConfiguration('snipsense').get<boolean>('multiFile', true),
       untrusted: !vscode.workspace.isTrusted,
       version,
     };
@@ -162,6 +167,15 @@ export class CardViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         break;
       case 'openFile':
         actions.openFile();
+        break;
+      case 'openRelated':
+        if (
+          typeof message.uri === 'string' &&
+          typeof message.line === 'number' &&
+          Number.isFinite(message.line)
+        ) {
+          actions.openRelated(message.uri, message.line);
+        }
         break;
       case 'openLink':
         if (typeof message.url === 'string') actions.openLink(message.url);

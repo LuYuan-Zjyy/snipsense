@@ -12,7 +12,8 @@ Do not open a public issue for a vulnerability. Please include a minimal reprodu
 
 - API keys are stored in VS Code `SecretStorage`, never in `settings.json`.
 - Selected code and nearby context are sent only to the endpoint the user configures.
-- Provider, endpoint, model and context-size settings are `application` scoped so a workspace cannot redirect code to another endpoint.
+- With `multiFile` enabled, a bounded set of related definition excerpts and reference call sites is also sent. The analyzer only resolves workspace files used by the selection and never scans `node_modules`.
+- Provider, endpoint, model, context-size and graph-size settings are `application` scoped so a workspace cannot redirect code to another endpoint or enlarge the sent context.
 - Auto-explain is disabled in untrusted workspaces until the user manually triggers an explanation.
 - The cache stores explanation text and a SHA-256 key, not source code.
 - Model output is rendered through DOMPurify with a restrictive Content Security Policy.

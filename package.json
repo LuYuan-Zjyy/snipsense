@@ -1,8 +1,8 @@
 {
   "name": "snipsense",
   "displayName": "SnipSense · 选中即懂",
-  "description": "选中一段代码，像查字典一样读懂它。行尾一句话，侧栏一张卡，支持 DeepSeek / OpenAI / Ollama。",
-  "version": "0.1.0",
+  "description": "选中一段代码，像查字典一样读懂它，并顺手理清跨文件依赖和真实用法。行尾一句话，侧栏一张卡，支持 DeepSeek / OpenAI / Ollama。",
+  "version": "0.2.0",
   "publisher": "luyuan-zjyy",
   "license": "MIT",
   "author": {
@@ -32,6 +32,8 @@
     "ai",
     "code explanation",
     "code dictionary",
+    "multi-file",
+    "code-graph",
     "deepseek",
     "ollama",
     "openai"
@@ -244,7 +246,7 @@
         },
         "snipsense.maxTokens": {
           "type": "number",
-          "default": 520,
+          "default": 620,
           "minimum": 120,
           "maximum": 2000,
           "scope": "application",
@@ -263,6 +265,28 @@
           "default": true,
           "scope": "window",
           "description": "在状态栏显示 SnipSense。"
+        },
+        "snipsense.multiFile": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "解释时分析 import/export、定义和调用点，把必要的关联文件片段一起发给模型。关闭后只解释选区本身。"
+        },
+        "snipsense.maxRelatedFiles": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 12,
+          "scope": "application",
+          "description": "最多附带多少个依赖文件的定义片段。"
+        },
+        "snipsense.maxUsages": {
+          "type": "number",
+          "default": 6,
+          "minimum": 0,
+          "maximum": 20,
+          "scope": "application",
+          "description": "最多附带多少处跨文件调用点。设为 0 可关闭调用点搜索。"
         }
       }
     }

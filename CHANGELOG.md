@@ -2,6 +2,27 @@
 
 All notable changes to SnipSense are documented here.
 
+## [0.2.0] - 2026-11-13
+
+### Added
+
+- Cross-file dependency analysis for TS/JS, Python and a generic fallback.
+- Import resolution for relative paths, common `@/` / `~/` aliases, Python modules and Java package paths.
+- Definition excerpts for imported symbols actually used by the selection.
+- Reference-provider call sites for exported/imported symbols.
+- A “Related” card section with clickable dependency files and real usage sites.
+- `**依赖关系**` / `**怎么用**` sections in the LLM prompt when a graph is available.
+- Bounded graph context in follow-up questions.
+- Settings: `multiFile`, `maxRelatedFiles`, `maxUsages`.
+- Graph-aware cache keys and graph metadata in cache entries.
+- 18 new unit tests; integration test now verifies cross-file context reaches the model.
+
+### Changed
+
+- Default `maxTokens` increased from 520 to 620 for dependency explanations.
+- Cache format bumped to `snipsense.cache.v2`.
+- Privacy documentation now covers related-file excerpts and call-site snippets.
+
 ## [0.1.0] - 2026-11-13
 
 ### Added

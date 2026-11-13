@@ -30,6 +30,9 @@ export interface AppSettings {
   maxTokens: number;
   temperature: number;
   showStatusBar: boolean;
+  multiFile: boolean;
+  maxRelatedFiles: number;
+  maxUsages: number;
 }
 
 export interface SelectionContext {
@@ -60,6 +63,28 @@ export interface SelectionView {
 
 export type CardStatus = 'empty' | 'setup' | 'idle' | 'loading' | 'streaming' | 'done' | 'error';
 
+export interface RelatedFileView {
+  file: string;
+  uri: string;
+  line: number;
+  symbols: string[];
+  reason: string;
+}
+
+export interface UsageView {
+  file: string;
+  uri: string;
+  line: number;
+  symbol: string;
+  snippet: string;
+}
+
+export interface GraphView {
+  dependencies: RelatedFileView[];
+  usages: UsageView[];
+  truncated: boolean;
+}
+
 export interface Turn {
   question: string;
   answer: string;
@@ -82,6 +107,8 @@ export interface CardState {
   needsSetup: boolean;
   cached: boolean;
   conversation: Turn[];
+  graph: GraphView | null;
+  multiFile: boolean;
   untrusted: boolean;
   version: string;
 }
@@ -99,4 +126,5 @@ export interface Explanation {
 export interface CacheEntry extends Explanation {
   at: number;
   model: string;
+  graph?: GraphView;
 }

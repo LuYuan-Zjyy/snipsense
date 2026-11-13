@@ -23,6 +23,9 @@ const baseSettings: AppSettings = {
   maxTokens: 520,
   temperature: 0.2,
   showStatusBar: true,
+  multiFile: true,
+  maxRelatedFiles: 5,
+  maxUsages: 6,
 };
 
 describe('normalizeEndpoint', () => {

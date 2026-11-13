@@ -48,6 +48,15 @@ export function firstSentence(value: string, max = 46): string {
   return truncate(sentence.replace(/[。！？.!?]+$/, ''), max);
 }
 
+export function fencedCode(code: string, language = 'text'): string {
+  const longestRun = Math.max(
+    0,
+    ...Array.from(code.matchAll(/`+/g), (match) => match[0]?.length ?? 0),
+  );
+  const fence = '`'.repeat(Math.max(3, longestRun + 1));
+  return `${fence}${language}\n${code}\n${fence}`;
+}
+
 export function isAbortError(error: unknown): boolean {
   return (
     (error instanceof DOMException && error.name === 'AbortError') ||

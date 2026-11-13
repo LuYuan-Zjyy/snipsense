@@ -13,6 +13,7 @@ SnipSense 是一个给 **Cursor / VS Code** 用的轻量代码词典。拖选代
 
 - 选区末尾出现一句“人话”解释；
 - 右侧卡片流式展开关键点、边界和坑；
+- 顺手梳理它**依赖哪些文件、谁在调用它、真实用法是什么**；
 - 不懂就继续追问，不用复制、切浏览器、再粘回来。
 
 它不是另一个聊天窗口，而是读代码时随手可查的一层。
@@ -35,15 +36,17 @@ Cursor 自带的 `Ctrl+L` / `Cmd+L` 很强，但它仍然是“打开一个对�
 
 ## 它长什么样
 
-| 能力         | 说明                                                          |
-| ------------ | ------------------------------------------------------------- |
-| 选中即解释   | 默认停止选择 550ms 后自动请求，可在卡片或设置里关闭           |
-| 行尾一句话   | 在选区末尾显示简短 gloss，不打断代码排版；悬停可打开完整解释  |
-| 侧栏词典卡   | 流式输出“一句话 + 2-4 个关键点”，适合快速扫读                 |
-| 继续追问     | `再简单点`、`举个例子`、`为什么这样写`，也可以自己问          |
-| 不绑定模型   | DeepSeek、OpenAI、硅基流动、本地 Ollama、任意 OpenAI 兼容接口 |
-| 手机般的轻量 | 只发选中代码和附近上下文，不做代码索引，不上传遥测            |
-| 开源         | MIT，欢迎改 prompt、加 provider、提 PR                        |
+| 能力         | 说明                                                                |
+| ------------ | ------------------------------------------------------------------- |
+| 选中即解释   | 默认停止选择 550ms 后自动请求，可在卡片或设置里关闭                 |
+| 行尾一句话   | 在选区末尾显示简短 gloss，不打断代码排版；悬停可打开完整解释        |
+| 侧栏词典卡   | 流式输出“一句话 + 2-4 个关键点”，适合快速扫读                       |
+| 跨文件关联   | 自动找 import/export、定义片段和调用点，卡片列出“它依赖 / 谁在用它” |
+| 用法说明     | 尽量基于真实调用点讲参数、返回值、调用顺序和副作用                  |
+| 继续追问     | `再简单点`、`举个例子`、`为什么这样写`，也可以自己问                |
+| 不绑定模型   | DeepSeek、OpenAI、硅基流动、本地 Ollama、任意 OpenAI 兼容接口       |
+| 手机般的轻量 | 只发选区、附近上下文和有限关联片段，不做全项目索引、不上传遥测      |
+| 开源         | MIT，欢迎改 prompt、加 provider、提 PR                              |
 
 ## 先说明：有这样的插件吗？
 
@@ -62,14 +65,14 @@ Cursor 自带的 `Ctrl+L` / `Cmd+L` 很强，但它仍然是“打开一个对�
 
 ### 1. 安装
 
-从 [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases) 下载 `snipsense-0.1.0.vsix`，然后：
+从 [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases) 下载 `snipsense-0.2.0.vsix`，然后：
 
 ```bash
 # Cursor
-cursor --install-extension snipsense-0.1.0.vsix
+cursor --install-extension snipsense-0.2.0.vsix
 
 # VS Code
-code --install-extension snipsense-0.1.0.vsix
+code --install-extension snipsense-0.2.0.vsix
 ```
 
 也可以在编辑器的扩展面板里选择 **Install from VSIX**。
@@ -105,7 +108,8 @@ ollama serve
 2. 停半秒；
 3. 选区末尾出现 `✦ 一句话`；
 4. 鼠标悬停那句话，点“查看完整解释”，或点状态栏的 **SnipSense**；
-5. 在卡片底部继续追问。
+5. 看卡片里的 **关联**：它依赖哪些文件、谁在调用它；点任意一条直接跳转；
+6. 在卡片底部继续追问。
 
 也可以：
 
@@ -115,17 +119,18 @@ ollama serve
 
 ## 和现有工具的区别
 
-|                | Cursor `Ctrl+L` | Copilot Chat | CodeGlance | SnipSense |
-| -------------- | --------------- | ------------ | ---------- | --------- |
-| 选中后自动解释 | 否              | 否           | 否         | **是**    |
-| 行尾一句话     | 否              | 否           | 否         | **是**    |
-| 侧栏词典卡     | 聊天            | 聊天         | 是         | **是**    |
-| 选中后继续追问 | 是              | 是           | 否         | **是**    |
-| DeepSeek       | 取决于 Cursor   | 否           | 否         | **是**    |
-| 本地 Ollama    | 取决于 Cursor   | 否           | 否         | **是**    |
-| 开源           | 否              | 否           | MIT        | **MIT**   |
+|                   | Cursor `Ctrl+L` | Copilot Chat | CodeGlance | SnipSense |
+| ----------------- | --------------- | ------------ | ---------- | --------- |
+| 选中后自动解释    | 否              | 否           | 否         | **是**    |
+| 行尾一句话        | 否              | 否           | 否         | **是**    |
+| 侧栏词典卡        | 聊天            | 聊天         | 是         | **是**    |
+| 选中后继续追问    | 是              | 是           | 否         | **是**    |
+| 跨文件依赖/调用点 | 取决于对话      | 取决于对话   | 否         | **是**    |
+| DeepSeek          | 取决于 Cursor   | 否           | 否         | **是**    |
+| 本地 Ollama       | 取决于 Cursor   | 否           | 否         | **是**    |
+| 开源              | 否              | 否           | MIT        | **MIT**   |
 
-这不是说谁更好。要重构、要跨文件大改，Cursor Chat / Copilot 更合适；SnipSense 只负责“这段代码在干嘛”这一件小事。
+这不是说谁更好。要重构、要跨文件大改，Cursor Chat / Copilot 更合适；SnipSense 负责的是读代码时最常问的那几个小问题：**这段在干嘛、它靠什么工作、别人怎么用它。**
 
 ## 配置
 
@@ -143,9 +148,12 @@ ollama serve
   "snipsense.debounceMs": 550,
   "snipsense.contextLines": 12,
   "snipsense.maxSelectionChars": 12000,
-  "snipsense.maxTokens": 520,
+  "snipsense.maxTokens": 620,
   "snipsense.temperature": 0.2,
-  "snipsense.showStatusBar": true
+  "snipsense.showStatusBar": true,
+  "snipsense.multiFile": true,
+  "snipsense.maxRelatedFiles": 5,
+  "snipsense.maxUsages": 6
 }
 ```
 
@@ -161,23 +169,40 @@ ollama serve
 | `debounceMs`        | `550`      | 停止选择后等待时间                         |
 | `contextLines`      | `12`       | 选区前后各带多少行上下文                   |
 | `maxSelectionChars` | `12000`    | 超长选区从中间截断                         |
-| `maxTokens`         | `520`      | 单次回复上限                               |
+| `maxTokens`         | `620`      | 单次回复上限                               |
 | `temperature`       | `0.2`      | 解释代码建议低温                           |
 | `showStatusBar`     | `true`     | 状态栏入口                                 |
+| `multiFile`         | `true`     | 分析 import/export、定义和调用点           |
+| `maxRelatedFiles`   | `5`        | 最多附带多少个依赖文件片段                 |
+| `maxUsages`         | `6`        | 最多附带多少处调用点；`0` 关闭搜索         |
 
 > `provider`、`apiBase`、`model`、`contextLines` 等会决定代码发往哪里、发多少，因此被设为 **application 级**配置，工作区的 `.vscode/settings.json` 不能偷偷改掉它们。
 
 ## 隐私与安全
 
 - 只发送：选中代码、选区前后各 `contextLines` 行、文件名（相对路径）、语言和行号。
-- 不发送：完整项目、其他文件、终端内容、编辑历史。
+- 多文件开启时，额外发送：被选中代码实际用到的 import 对应文件的**有限定义片段**（最多 `maxRelatedFiles` 个），以及最多 `maxUsages` 处真实调用点。
+- 不发送：完整项目、无关文件、`node_modules`、终端内容、编辑历史。
 - 不接入任何遥测；没有账号体系。
 - API Key 存在 VS Code `SecretStorage`，不写入设置文件，不写日志。
-- 解释缓存只保存 `gist/detail` 和哈希键，不保存原始代码；缓存键不可逆。
+- 解释缓存只保存 `gist/detail`、少量关联元数据（含调用行文本）和哈希键，不保存完整文件；缓存键不可逆。
+- 多文件分析只在工作区文件内做路径解析，不递归扫描整个项目。
 - 未受信任的工作区（Restricted Mode）会暂停自动解释，只有你手动执行解释时才发送。
-- 如果代码含密钥、隐私数据，请改用本地 Ollama，或不要选中发送。
+- 如果代码含密钥、隐私数据，请关闭 `multiFile`、改用本地 Ollama，或不要选中发送。
 
 ## 常见问题
+
+**它怎么知道有哪些关联文件？**
+
+SnipSense 解析当前文件的 import/export，解析相对路径和常见别名（TS/JS 的 `@/`、`~/`，Python 的相对模块，Java 的包路径），再用 VS Code 的 Reference Provider 找调用点。只取和选区真正相关的符号，不会整库索引。
+
+**为什么关联文件不准？**
+
+动态 import、路径别名、monorepo、语言服务器缺失都可能影响解析。卡片里的“关联”只展示有证据的文件和调用点；模型被要求没有证据就说“未发现调用点”。TS/JS 和 Python 的效果最好。
+
+**它会递归分析整个依赖树吗？**
+
+不会。SnipSense 只做“选中代码这一跳”：直接 import 的定义片段 + 直接调用点，避免把整个项目塞进上下文和账单。多跳依赖可以后续做成可选能力。
 
 **选中后没有自动解释？**
 
@@ -211,7 +236,7 @@ ollama serve
 
 ```bash
 npm install
-npm run check            # 格式 + 类型 + lint + 49 个单元测试 + 构建
+npm run check            # 格式 + 类型 + lint + 67 个单元测试 + 构建
 npm run dev              # 监听 extension + webview
 npm run package          # 生成 .vsix
 npm run preview          # 生成 docs/preview.html（截图见 docs/preview.png）
@@ -223,8 +248,8 @@ npm run test:integration # 启动 VS Code 测试宿主，用本地 mock 模型�
 目录：
 
 ```text
-src/core/           纯逻辑：prompt、SSE、parser、缓存、endpoint
-src/vscode/         控制器、侧栏 Webview、选择捕获、配置
+src/core/           纯逻辑：prompt、SSE、parser、缓存、endpoint、跨文件图
+src/vscode/         控制器、侧栏 Webview、选择捕获、配置、依赖分析
 webview/            词典卡片 UI（marked + DOMPurify）
 test/               Vitest 单元测试
 scripts/            icon / preview 生成
@@ -238,6 +263,7 @@ scripts/            icon / preview 生成
 - [ ] 本地小模型自动路由（简单片段走 Ollama）
 - [ ] 代码块语法高亮
 - [ ] 英文 UI（当前 UI 中文，解释语言可切英文）
+- [ ] Go / Rust 的模块解析增强
 - [ ] 团队共享 prompt 预设
 - [ ] 发布到 Open VSX
 

@@ -22,9 +22,10 @@ try {
     vscodeExecutablePath: executable,
     extensionDevelopmentPath: root,
     extensionTestsPath: path.join(root, 'test', 'integration', 'suite.cjs'),
+    // Keep built-in language features enabled: the reference provider is part
+    // of the TS/JS language service and is needed to verify cross-file usages.
     launchArgs: [
       path.join(root, 'test', 'fixtures', 'workspace'),
-      '--disable-extensions',
       '--disable-gpu',
       '--skip-welcome',
       '--skip-release-notes',

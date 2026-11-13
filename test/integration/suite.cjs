@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const http = require('node:http');
+const path = require('node:path');
 const vscode = require('vscode');
 
 exports.run = async function run() {
@@ -66,23 +67,32 @@ exports.run = async function run() {
     await config.update('model', 'mock-model', vscode.ConfigurationTarget.Global);
     await config.update('autoExplain', true, vscode.ConfigurationTarget.Global);
     await config.update('debounceMs', 200, vscode.ConfigurationTarget.Global);
+    await config.update('multiFile', true, vscode.ConfigurationTarget.Global);
+    await config.update('maxRelatedFiles', 5, vscode.ConfigurationTarget.Global);
+    await config.update('maxUsages', 6, vscode.ConfigurationTarget.Global);
 
-    const document = await vscode.workspace.openTextDocument({
-      language: 'typescript',
-      content:
-        'export function add(left: number, right: number): number {\n  return left + right;\n}\n',
-    });
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    assert.ok(folder, 'The fixture workspace should be open');
+    const document = await vscode.workspace.openTextDocument(
+      vscode.Uri.file(path.join(folder.uri.fsPath, 'src', 'use-math.ts')),
+    );
     const editor = await vscode.window.showTextDocument(document);
-    editor.selection = new vscode.Selection(0, 0, 0, 63);
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    const lastLine = editor.document.lineAt(4).text;
+    editor.selection = new vscode.Selection(2, 0, 4, lastLine.length);
 
-    const payload = await waitFor(request.promise, 10_000);
+    const payload = await waitFor(request.promise, 15_000);
+    assert.match(payload.body, /use-math/);
+    assert.match(payload.body, /math\.ts/);
+    assert.match(payload.body, /report\.ts/);
+    assert.match(payload.body, /它依赖的文件/);
     assert.match(payload.body, /add/);
     assert.match(payload.body, /mock-model/);
     assert.equal(payload.authorization, undefined);
-    console.log('[SnipSense integration] mock model request received');
+    console.log('[SnipSense integration] mock model request received with cross-file context');
 
     await new Promise((resolve) => setTimeout(resolve, 700));
-    assert.equal(editor.document.getText().includes('return left + right'), true);
+    assert.equal(editor.document.getText().includes('add(sum, value)'), true);
   } finally {
     await config.update('provider', 'deepseek', vscode.ConfigurationTarget.Global);
     await config.update('apiBase', '', vscode.ConfigurationTarget.Global);

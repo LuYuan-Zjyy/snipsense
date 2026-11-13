@@ -115,6 +115,12 @@ app.addEventListener('click', (event) => {
     case 'openFile':
       post({ type: 'openFile' });
       break;
+    case 'openRelated': {
+      const uri = button.dataset.uri;
+      const line = Number(button.dataset.line);
+      if (uri && Number.isFinite(line)) post({ type: 'openRelated', uri, line });
+      break;
+    }
     case 'send':
       sendQuestion();
       break;
@@ -169,7 +175,14 @@ function render(): void {
   content.innerHTML = renderBody();
   decorateLinks();
 
-  if (statusChanged && (next.status === 'loading' || next.status === 'empty')) {
+  const enteringContent =
+    statusChanged &&
+    (next.status === 'loading' ||
+      next.status === 'empty' ||
+      lastStatus === 'empty' ||
+      lastStatus === 'setup' ||
+      lastStatus === 'idle');
+  if (!lastStatus || enteringContent) {
     content.scrollTop = 0;
   } else if (atBottom) {
     content.scrollTop = content.scrollHeight;
@@ -215,20 +228,21 @@ function renderBody(): string {
 
   const context = value.selection ? contextMarkup() : '';
   if (value.status === 'idle') return `${context}${idleMarkup()}`;
-  if (value.status === 'error') return `${context}${errorMarkup()}`;
-  if (value.status === 'loading') return `${context}${thinkingMarkup()}`;
+  if (value.status === 'error') return `${context}${graphMarkup()}${errorMarkup()}`;
+  if (value.status === 'loading') return `${context}${graphMarkup()}${thinkingMarkup()}`;
 
   const hasGist = Boolean(value.gist);
   const hasDetail = Boolean(value.detail);
   const hasConversation = value.conversation.length > 0;
 
   if (value.status === 'streaming' && !hasGist && !hasDetail && !hasConversation) {
-    return `${context}${thinkingMarkup()}`;
+    return `${context}${graphMarkup()}${thinkingMarkup()}`;
   }
 
   return [
     context,
     hasGist ? gistMarkup() : '',
+    graphMarkup(),
     hasDetail ? detailMarkup() : value.status === 'streaming' ? detailSkeleton() : '',
     hasConversation ? conversationMarkup() : '',
   ].join('');
@@ -323,10 +337,11 @@ function errorMarkup(): string {
 }
 
 function thinkingMarkup(): string {
+  const multiFile = state.value.multiFile;
   return `
     <section class="thinking">
-      <div class="thinking-head"><span class="spinner"></span><span>正在读懂这段代码…</span></div>
-      <p class="thinking-sub">先给一句话，再补关键点</p>
+      <div class="thinking-head"><span class="spinner"></span><span>${multiFile ? '正在读懂这段代码和它周围的文件…' : '正在读懂这段代码…'}</span></div>
+      <p class="thinking-sub">${multiFile ? '会顺手看 import、调用点和真实用法' : '先给一句话，再补关键点'}</p>
       <div class="shimmer-lines" aria-hidden="true">
         <span></span><span></span><span></span>
       </div>
@@ -360,6 +375,64 @@ function contextMarkup(): string {
       </div>
       <pre class="code-preview">${escapeHtml(selection.preview)}</pre>
       ${selection.truncated ? '<div class="truncated">选区较长，发送时已从中间截断</div>' : ''}
+    </section>
+  `;
+}
+
+function graphMarkup(): string {
+  const graph = state.value.graph;
+  if (!graph) return '';
+  const dependencies = graph.dependencies;
+  const usages = graph.usages;
+  if (dependencies.length === 0 && usages.length === 0) return '';
+
+  const counts = [
+    dependencies.length ? `${dependencies.length} 个依赖` : '',
+    usages.length ? `${usages.length} 处调用` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const dependencyMarkup = dependencies.length
+    ? `<div class="related-group">
+        <div class="related-label">它依赖</div>
+        ${dependencies
+          .map(
+            (item) => `
+          <button class="related-item" type="button" data-action="openRelated" data-uri="${escapeHtml(item.uri)}" data-line="${item.line}">
+            <span class="related-file">${escapeHtml(item.file)}</span>
+            <span class="related-why">${escapeHtml(item.reason)}</span>
+            <span class="related-line">L${item.line}</span>
+          </button>`,
+          )
+          .join('')}
+      </div>`
+    : '';
+
+  const usageMarkup = usages.length
+    ? `<div class="related-group">
+        <div class="related-label">谁在用它</div>
+        ${usages
+          .map(
+            (item) => `
+          <button class="related-item usage" type="button" data-action="openRelated" data-uri="${escapeHtml(item.uri)}" data-line="${item.line}">
+            <span class="related-file">${escapeHtml(item.file)}<span class="related-line">L${item.line}</span></span>
+            <span class="related-snippet">${escapeHtml(item.snippet)}</span>
+          </button>`,
+          )
+          .join('')}
+      </div>`
+    : '';
+
+  return `
+    <section class="related">
+      <div class="related-head">
+        <span class="eyebrow">关联</span>
+        <span class="related-count">${escapeHtml(counts)}</span>
+      </div>
+      ${dependencyMarkup}
+      ${usageMarkup}
+      ${graph.truncated ? '<div class="related-note">只展示最相关的一部分</div>' : ''}
     </section>
   `;
 }
@@ -555,7 +628,9 @@ function defaultState(): CardState {
     needsSetup: false,
     cached: false,
     conversation: [],
+    graph: null,
+    multiFile: true,
     untrusted: false,
-    version: '0.1.0',
+    version: '0.2.0',
   };
 }

@@ -55,8 +55,30 @@ useEffect(() => {
       pending: false,
     },
   ],
+  graph: {
+    dependencies: [
+      {
+        file: 'src/lib/delay.ts',
+        uri: 'file:///workspace/src/lib/delay.ts',
+        line: 4,
+        symbols: ['delay'],
+        reason: '导入了 delay',
+      },
+    ],
+    usages: [
+      {
+        file: 'src/pages/search.ts',
+        uri: 'file:///workspace/src/pages/search.ts',
+        line: 42,
+        symbol: 'useDebouncedValue',
+        snippet: 'const query = useDebouncedValue(input, 300);',
+      },
+    ],
+    truncated: false,
+  },
+  multiFile: true,
   untrusted: false,
-  version: '0.1.0',
+  version: '0.2.0',
 };
 
 const variants = {
@@ -69,6 +91,7 @@ const variants = {
     detail: '',
     conversation: [],
     needsSetup: true,
+    graph: null,
   },
   setup: {
     ...mock,
@@ -78,6 +101,7 @@ const variants = {
     detail: '',
     conversation: [],
     needsSetup: true,
+    graph: null,
   },
   loading: {
     ...mock,
@@ -93,6 +117,7 @@ const variants = {
     detail: '',
     conversation: [],
     autoExplain: false,
+    graph: null,
   },
   error: {
     ...mock,
@@ -100,6 +125,7 @@ const variants = {
     gist: '',
     detail: '',
     conversation: [],
+    graph: null,
     error: 'API Key 无效或已过期。请运行「SnipSense: 设置模型与 API Key」检查。',
   },
 };

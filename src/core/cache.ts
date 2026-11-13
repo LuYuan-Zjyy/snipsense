@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import type { CacheEntry, Explanation } from './types';
+import type { CacheEntry, Explanation, GraphView } from './types';
 
-const CACHE_KEY = 'snipsense.cache.v1';
+const CACHE_KEY = 'snipsense.cache.v2';
 
 export interface MementoLike {
   get<T>(key: string): T | undefined;
@@ -17,6 +17,7 @@ export interface CacheInput {
   code: string;
   before: string;
   after: string;
+  related?: string;
 }
 
 export function createCacheKey(input: CacheInput): string {
@@ -31,6 +32,7 @@ export function createCacheKey(input: CacheInput): string {
         input.code,
         input.before,
         input.after,
+        input.related ?? '',
       ]),
     )
     .digest('hex');
@@ -50,11 +52,12 @@ export class ExplanationCache {
     return this.entries[key];
   }
 
-  set(key: string, explanation: Explanation, model: string): void {
+  set(key: string, explanation: Explanation, model: string, graph?: GraphView): void {
     this.entries[key] = {
       gist: explanation.gist,
       detail: explanation.detail,
       model,
+      graph,
       at: Date.now(),
     };
 

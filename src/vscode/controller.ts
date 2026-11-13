@@ -10,6 +10,7 @@ import {
   resolveApiBase,
   resolveModel,
 } from '../core/endpoint';
+import { type GraphData, graphDataFromView, toGraphView } from '../core/graph';
 import { ExplanationStream } from '../core/parser';
 import { buildExplainMessages, buildFollowupMessages, quickQuestion } from '../core/prompts';
 import { isAbortError, truncate } from '../core/text';
@@ -22,6 +23,7 @@ import type {
   Turn,
 } from '../core/types';
 import { getApiKey, hasApiKey, readSettings } from './config';
+import { analyzeDependencies, type GraphResult } from './graph';
 import {
   type CapturedSelection,
   captureSelection,
@@ -37,6 +39,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
   private state: CardState;
   private current: CapturedSelection | undefined;
   private currentExplanation: Explanation | undefined;
+  private currentGraph: GraphData | undefined;
   private conversation: Turn[] = [];
   private pinned = false;
   private generation = 0;
@@ -74,6 +77,8 @@ export class ExplainerController implements vscode.Disposable, CardActions {
       needsSetup: false,
       cached: false,
       conversation: [],
+      graph: null,
+      multiFile: settings.multiFile,
       untrusted: !vscode.workspace.isTrusted,
       version: context.extension.packageJSON.version as string,
     };
@@ -198,6 +203,37 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     void revealSelection(this.current.context);
   }
 
+  openRelated(uri: string, line: number): void {
+    const allowed =
+      this.state.graph?.dependencies.some((item) => item.uri === uri) ||
+      this.state.graph?.usages.some((item) => item.uri === uri);
+    if (!allowed) return;
+
+    let parsed: vscode.Uri;
+    try {
+      parsed = vscode.Uri.parse(uri);
+    } catch {
+      return;
+    }
+    if (parsed.scheme !== 'file' && parsed.scheme !== 'untitled') return;
+
+    void (async () => {
+      try {
+        const document = await vscode.workspace.openTextDocument(parsed);
+        const editor = await vscode.window.showTextDocument(document, { preview: false });
+        const targetLine = Math.max(0, Math.min(document.lineCount - 1, line - 1));
+        const position = new vscode.Position(targetLine, 0);
+        editor.selection = new vscode.Selection(position, position);
+        editor.revealRange(
+          new vscode.Range(position, position),
+          vscode.TextEditorRevealType.InCenterIfOutsideViewport,
+        );
+      } catch {
+        // The file may have been deleted or moved since analysis.
+      }
+    })();
+  }
+
   openLink(url: string): void {
     let parsed: URL;
     try {
@@ -284,6 +320,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     this.clearDebounce();
     this.current = captured;
     this.currentExplanation = undefined;
+    this.currentGraph = undefined;
     this.conversation = [];
     this.patchState({
       status: 'idle',
@@ -293,6 +330,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
       error: '',
       cached: false,
       conversation: [],
+      graph: null,
       ...baseFields(settings),
     });
     this.clearGloss();
@@ -327,12 +365,14 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     if (!editor) return;
 
     this.invalidate();
+    this.currentGraph = undefined;
     if (this.isBusy()) {
       this.patchState({
         status: 'idle',
         gist: '',
         detail: '',
         error: '',
+        graph: null,
         conversation: [],
       });
     }
@@ -343,11 +383,13 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     this.clearGloss();
     if (this.isBusy()) {
       this.invalidate();
+      this.currentGraph = undefined;
       this.patchState({
         status: 'idle',
         gist: '',
         detail: '',
         error: '',
+        graph: null,
         conversation: [],
       });
     }
@@ -360,6 +402,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
       this.invalidate();
       this.current = undefined;
       this.currentExplanation = undefined;
+      this.currentGraph = undefined;
       this.conversation = [];
       this.patchState({
         status: 'empty',
@@ -367,6 +410,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
         gist: '',
         detail: '',
         error: '',
+        graph: null,
         conversation: [],
       });
       return;
@@ -374,6 +418,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     if (this.state.status === 'idle' || this.state.status === 'error') {
       this.current = undefined;
       this.currentExplanation = undefined;
+      this.currentGraph = undefined;
       this.conversation = [];
       this.patchState({
         status: 'empty',
@@ -381,6 +426,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
         gist: '',
         detail: '',
         error: '',
+        graph: null,
         conversation: [],
       });
     }
@@ -424,6 +470,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     this.current = captured;
     this.conversation = [];
     this.currentExplanation = undefined;
+    this.currentGraph = undefined;
     this.patchState({
       status: 'loading',
       selection: selectionView(captured.context),
@@ -432,6 +479,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
       error: '',
       cached: false,
       conversation: [],
+      graph: null,
       ...baseFields(settings),
     });
     this.setGloss('解读中…');
@@ -448,6 +496,25 @@ export class ExplainerController implements vscode.Disposable, CardActions {
       const endpoint = normalizeEndpoint(resolveApiBase(settings));
       const model = displayModel(settings);
       this.patchState({ model, needsSetup: false });
+
+      let graph: GraphResult | undefined;
+      if (settings.multiFile) {
+        try {
+          graph = (await analyzeDependencies(captured.context, settings, this.output)) ?? undefined;
+        } catch (error) {
+          this.output.appendLine(
+            `[${stamp()}] graph analysis failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+        if (runId !== this.generation) return;
+        if (graph) {
+          this.currentGraph = graph.data;
+          this.patchState({ graph: toGraphView(graph.data) });
+        }
+      }
+
       const cacheKey = createCacheKey({
         provider: settings.provider,
         endpoint,
@@ -457,17 +524,20 @@ export class ExplainerController implements vscode.Disposable, CardActions {
         code: captured.context.code,
         before: captured.context.before,
         after: captured.context.after,
+        related: graph?.signature ?? '',
       });
 
       const cached = this.cache.get(cacheKey);
       if (cached) {
         this.currentExplanation = { gist: cached.gist, detail: cached.detail };
+        this.currentGraph = cached.graph ? graphDataFromView(cached.graph) : graph?.data;
         this.patchState({
           status: 'done',
           gist: cached.gist,
           detail: cached.detail,
           cached: true,
           error: '',
+          graph: cached.graph ?? (graph ? toGraphView(graph.data) : null),
         });
         this.setGloss(cached.gist);
         this.output.appendLine(`[${stamp()}] cache hit ${model} (${cached.detail.length} chars)`);
@@ -488,7 +558,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
           maxTokens: settings.maxTokens,
           temperature: settings.temperature,
         },
-        buildExplainMessages(captured.context, settings),
+        buildExplainMessages(captured.context, settings, graph?.data),
         { signal },
       )) {
         if (runId !== this.generation) return;
@@ -513,13 +583,14 @@ export class ExplainerController implements vscode.Disposable, CardActions {
       }
 
       this.currentExplanation = final;
-      this.cache.set(cacheKey, final, model);
+      this.cache.set(cacheKey, final, model, graph ? toGraphView(graph.data) : undefined);
       this.patchState({
         status: 'done',
         gist: final.gist,
         detail: final.detail,
         cached: false,
         error: '',
+        graph: graph ? toGraphView(graph.data) : this.state.graph,
       });
       this.setGloss(final.gist);
       this.output.appendLine(
@@ -583,6 +654,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
           explanation,
           this.conversation.filter((item) => item !== turn),
           question,
+          this.currentGraph,
         ),
         { signal },
       )) {
@@ -623,6 +695,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
 
   private showSetup(notify: boolean): void {
     this.currentExplanation = undefined;
+    this.currentGraph = undefined;
     this.patchState({
       status: 'setup',
       needsSetup: true,
@@ -630,6 +703,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
       detail: '',
       error: '',
       conversation: [],
+      graph: null,
     });
     this.clearGloss();
     if (notify) {
@@ -703,6 +777,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     const previousModel = this.state.model;
     const providerChanged =
       previousProvider !== settings.provider || previousModel !== displayModel(settings);
+    const multiFileChanged = this.state.multiFile !== settings.multiFile;
 
     this.patchState({
       autoExplain: settings.autoExplain,
@@ -716,9 +791,11 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     else this.updateStatusBar();
 
     if (!settings.autoExplain) this.clearDebounce();
-    if (providerChanged) {
+    if (providerChanged || multiFileChanged) {
       this.currentExplanation = undefined;
+      this.currentGraph = undefined;
       this.conversation = [];
+      this.patchState({ graph: null });
       if (this.current) {
         this.patchState({
           status: 'idle',
@@ -727,6 +804,7 @@ export class ExplainerController implements vscode.Disposable, CardActions {
           detail: '',
           error: '',
           conversation: [],
+          graph: null,
         });
         this.setGloss('Alt+Q 解释');
       }
@@ -824,6 +902,7 @@ function baseFields(settings: AppSettings): Partial<CardState> {
     model: displayModel(settings),
     autoExplain: settings.autoExplain,
     inlineGloss: settings.inlineGloss,
+    multiFile: settings.multiFile,
     untrusted: !vscode.workspace.isTrusted,
   };
 }

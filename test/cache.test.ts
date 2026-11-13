@@ -59,5 +59,16 @@ describe('createCacheKey', () => {
     };
     expect(createCacheKey(base)).toBe(createCacheKey({ ...base }));
     expect(createCacheKey(base)).not.toBe(createCacheKey({ ...base, code: 'const a = 2;' }));
+    expect(createCacheKey(base)).not.toBe(createCacheKey({ ...base, related: 'dep.ts' }));
+  });
+
+  it('stores the graph view with an explanation', () => {
+    const cache = new ExplanationCache(new MemoryMemento());
+    cache.set('key', { gist: '一句话', detail: '详细内容' }, 'model', {
+      dependencies: [],
+      usages: [],
+      truncated: false,
+    });
+    expect(cache.get('key')?.graph).toBeDefined();
   });
 });

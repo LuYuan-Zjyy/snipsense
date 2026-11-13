@@ -23,9 +23,12 @@ export function readSettings(): AppSettings {
     debounceMs: clamp(config.get<number>('debounceMs', 550), 200, 3000),
     contextLines: clamp(config.get<number>('contextLines', 12), 0, 60),
     maxSelectionChars: clamp(config.get<number>('maxSelectionChars', 12_000), 1000, 50_000),
-    maxTokens: clamp(config.get<number>('maxTokens', 520), 120, 2000),
+    maxTokens: clamp(config.get<number>('maxTokens', 620), 120, 2000),
     temperature: clamp(config.get<number>('temperature', 0.2), 0, 1),
     showStatusBar: config.get<boolean>('showStatusBar', true),
+    multiFile: config.get<boolean>('multiFile', true),
+    maxRelatedFiles: clamp(config.get<number>('maxRelatedFiles', 5), 1, 12),
+    maxUsages: clamp(config.get<number>('maxUsages', 6), 0, 20),
   };
 }
 
