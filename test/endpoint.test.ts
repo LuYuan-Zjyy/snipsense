@@ -26,6 +26,7 @@ const baseSettings: AppSettings = {
   multiFile: true,
   maxRelatedFiles: 5,
   maxUsages: 6,
+  quickJump: true,
 };
 
 describe('normalizeEndpoint', () => {

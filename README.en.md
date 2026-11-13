@@ -28,6 +28,7 @@ Cursor's built-in `Ctrl+L` is great for a deep conversation. SnipSense is for th
 - Inline one-sentence gloss at the selection end.
 - Streaming side-panel card, optimised for scanning.
 - Cross-file dependency analysis: imports/exports, definition excerpts and reference call sites.
+- Token-free Ctrl+click / F12 fallback for functions, classes, imports and aliases.
 - Usage-aware prompt: real arguments, return values, ordering and side effects where evidence exists.
 - Follow-up chips: simpler, example, why written this way.
 - DeepSeek, OpenAI, SiliconFlow, local Ollama and any OpenAI-compatible endpoint.
@@ -36,12 +37,12 @@ Cursor's built-in `Ctrl+L` is great for a deep conversation. SnipSense is for th
 
 ## Install
 
-Download `snipsense-0.2.0.vsix` from [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases), then:
+Download `snipsense-0.3.0.vsix` from [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases), then:
 
 ```bash
-cursor --install-extension snipsense-0.2.0.vsix
+cursor --install-extension snipsense-0.3.0.vsix
 # or
-code --install-extension snipsense-0.2.0.vsix
+code --install-extension snipsense-0.3.0.vsix
 ```
 
 Reload the window. Run **`SnipSense: 设置模型与 API Key`** from the Command Palette and pick a provider.
@@ -62,22 +63,24 @@ Select **Ollama（本地）** in SnipSense and test the connection. No API key a
 3. The inline gloss appears at the end of the selection.
 4. Hover it and open the full explanation, or click the SnipSense status-bar item.
 5. Use the **Related** section to jump to a dependency or a real call site.
-6. Ask a follow-up at the bottom of the card.
+6. `Ctrl+click` an imported function/class name to jump to its definition. If the language server has no answer, SnipSense provides a static fallback with no AI call. `Ctrl+Alt+J` runs the same jump from the keyboard.
+7. Ask a follow-up at the bottom of the card.
 
 The card lives in the activity bar. For the best reading layout, drag the view to the Secondary Side Bar on the right.
 
 ## Compared with existing tools
 
-|                              | Cursor `Ctrl+L`   | Copilot Chat    | CodeGlance | SnipSense |
-| ---------------------------- | ----------------- | --------------- | ---------- | --------- |
-| Automatic on selection       | No                | No              | No         | **Yes**   |
-| Inline one-liner             | No                | No              | No         | **Yes**   |
-| Side-panel card              | Chat              | Chat            | Yes        | **Yes**   |
-| Follow-up on same snippet    | Yes               | Yes             | No         | **Yes**   |
-| Cross-file deps / call sites | Depends on chat   | Depends on chat | No         | **Yes**   |
-| DeepSeek                     | Depends on Cursor | No              | No         | **Yes**   |
-| Local Ollama                 | Depends on Cursor | No              | No         | **Yes**   |
-| Open source                  | No                | No              | MIT        | **MIT**   |
+|                                | Cursor `Ctrl+L`   | Copilot Chat    | CodeGlance | SnipSense |
+| ------------------------------ | ----------------- | --------------- | ---------- | --------- |
+| Automatic on selection         | No                | No              | No         | **Yes**   |
+| Inline one-liner               | No                | No              | No         | **Yes**   |
+| Side-panel card                | Chat              | Chat            | Yes        | **Yes**   |
+| Follow-up on same snippet      | Yes               | Yes             | No         | **Yes**   |
+| Cross-file deps / call sites   | Depends on chat   | Depends on chat | No         | **Yes**   |
+| Token-free Ctrl+click fallback | Built-in          | Built-in        | No         | **Yes**   |
+| DeepSeek                       | Depends on Cursor | No              | No         | **Yes**   |
+| Local Ollama                   | Depends on Cursor | No              | No         | **Yes**   |
+| Open source                    | No                | No              | MIT        | **MIT**   |
 
 There are close alternatives — [CodeGlance](https://github.com/haarshitgarg/CodeGlance), [Snoop](https://open-vsx.org/extension/wintershin/snoop), [ReasonLine](https://marketplace.visualstudio.com/items?itemName=MauroGarcia.reasonline), [Code Lens AI](https://github.com/xinyulian053-arch/code-lens-ai) — but none had the exact automatic + inline + side-card + DeepSeek/Ollama combination. Hence this project.
 
@@ -89,7 +92,7 @@ By default, SnipSense sends the selected code, a configurable number of surround
 
 ```bash
 npm install
-npm run check            # format + typecheck + lint + tests + build
+npm run check            # format + typecheck + lint + 76 tests + build
 npm run package          # build a .vsix
 npm run preview          # generate docs/preview.html
 npm run test:integration # VS Code test host + local mock model, end to end

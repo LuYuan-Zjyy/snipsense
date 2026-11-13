@@ -29,6 +29,7 @@ export function readSettings(): AppSettings {
     multiFile: config.get<boolean>('multiFile', true),
     maxRelatedFiles: clamp(config.get<number>('maxRelatedFiles', 5), 1, 12),
     maxUsages: clamp(config.get<number>('maxUsages', 6), 0, 20),
+    quickJump: config.get<boolean>('quickJump', true),
   };
 }
 

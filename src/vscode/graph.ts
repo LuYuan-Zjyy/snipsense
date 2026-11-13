@@ -61,7 +61,6 @@ export async function analyzeDependencies(
 
   const dependencies = await findDependencies(
     document,
-    fromFile,
     selection.code,
     imports,
     settings,
@@ -95,7 +94,6 @@ export async function analyzeDependencies(
 
 async function findDependencies(
   document: vscode.TextDocument,
-  fromFile: string,
   selectedCode: string,
   imports: ParsedImport[],
   settings: AppSettings,
@@ -127,7 +125,7 @@ async function findDependencies(
     const symbols = entry.symbols.filter(
       (symbol) => symbol !== '*' && (used.has(symbol) || entry.kind === 'side-effect'),
     );
-    const resolved = await resolveImportDocument(document, fromFile, entry, cache);
+    const resolved = await resolveImportDocument(document, entry, cache);
     if (!resolved) continue;
 
     const key = resolved.uri.toString();
@@ -237,17 +235,22 @@ async function findUsages(
 
 async function resolveImportDocument(
   document: vscode.TextDocument,
-  fromFile: string,
   entry: ParsedImport,
   cache: DocumentCache,
 ): Promise<{ uri: vscode.Uri; document: vscode.TextDocument } | undefined> {
-  const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-  if (!folder) return undefined;
+  return resolveImportTarget(document, entry.source, cache);
+}
 
-  const candidates = resolveImportCandidates(fromFile, entry.source, document.languageId).slice(
-    0,
-    8,
-  );
+export async function resolveImportTarget(
+  document: vscode.TextDocument,
+  source: string,
+  cache: DocumentCache = {},
+): Promise<{ uri: vscode.Uri; document: vscode.TextDocument } | undefined> {
+  const folder = vscode.workspace.getWorkspaceFolder(document.uri);
+  const fromFile = relativeFile(document.uri);
+  if (!folder || !fromFile) return undefined;
+
+  const candidates = resolveImportCandidates(fromFile, source, document.languageId).slice(0, 8);
   for (const candidate of candidates) {
     const uri = vscode.Uri.joinPath(folder.uri, candidate);
     if (!isInside(folder.uri, uri)) continue;

@@ -16,6 +16,7 @@ exports.run = async function run() {
   for (const command of [
     'snipsense.explainSelection',
     'snipsense.openCard',
+    'snipsense.goToDefinition',
     'snipsense.setup',
     'snipsense.testConnection',
     'snipsense.toggleAuto',
@@ -93,6 +94,72 @@ exports.run = async function run() {
 
     await new Promise((resolve) => setTimeout(resolve, 700));
     assert.equal(editor.document.getText().includes('add(sum, value)'), true);
+
+    // Token-free Ctrl+click fallback: put the cursor on the imported `add`
+    // call and invoke the same provider through the command.
+    const callLine = editor.document.lineAt(3).text;
+    const addOffset = callLine.indexOf('add(');
+    const definitions = await vscode.commands.executeCommand(
+      'vscode.executeDefinitionProvider',
+      document.uri,
+      new vscode.Position(3, addOffset + 1),
+    );
+    assert.ok(
+      Array.isArray(definitions) &&
+        definitions.some((definition) => {
+          const uri = definition.uri ?? definition.targetUri;
+          return /math\.ts$/.test(uri?.fsPath ?? uri?.path ?? '');
+        }),
+      'Definition provider should resolve the imported add function',
+    );
+
+    editor.selection = new vscode.Selection(3, addOffset, 3, addOffset + 3);
+    await vscode.commands.executeCommand('snipsense.goToDefinition');
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    assert.match(
+      vscode.window.activeTextEditor?.document.uri.fsPath ?? '',
+      /math\.ts$/,
+      'Ctrl+click fallback should jump to the imported definition',
+    );
+
+    // Python absolute import from an adjacent file: the exact ViT.py /
+    // layer.py layout from the bug report. It must resolve PPEmb without Pylance.
+    const pythonDocument = await vscode.workspace.openTextDocument(
+      vscode.Uri.file(path.join(folder.uri.fsPath, 'py', 'vit.py')),
+    );
+    const pythonEditor = await vscode.window.showTextDocument(pythonDocument);
+    let ppeLine = -1;
+    for (let index = 0; index < pythonDocument.lineCount; index += 1) {
+      if (pythonDocument.lineAt(index).text.includes('PPEmb(img_size')) {
+        ppeLine = index;
+        break;
+      }
+    }
+    assert.ok(ppeLine >= 0, 'PPEmb call should exist in the Python fixture');
+    const ppeText = pythonDocument.lineAt(ppeLine).text;
+    const ppeOffset = ppeText.indexOf('PPEmb(');
+    const pythonDefinitions = await vscode.commands.executeCommand(
+      'vscode.executeDefinitionProvider',
+      pythonDocument.uri,
+      new vscode.Position(ppeLine, ppeOffset + 1),
+    );
+    assert.ok(
+      Array.isArray(pythonDefinitions) &&
+        pythonDefinitions.some((definition) => {
+          const uri = definition.uri ?? definition.targetUri;
+          return /layer\.py$/.test(uri?.fsPath ?? uri?.path ?? '');
+        }),
+      'PPEmb definition provider should resolve layer.py',
+    );
+
+    pythonEditor.selection = new vscode.Selection(ppeLine, ppeOffset, ppeLine, ppeOffset + 5);
+    await vscode.commands.executeCommand('snipsense.goToDefinition');
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    assert.match(
+      vscode.window.activeTextEditor?.document.uri.fsPath ?? '',
+      /layer\.py$/,
+      'PPEmb should jump to layer.py',
+    );
   } finally {
     await config.update('provider', 'deepseek', vscode.ConfigurationTarget.Global);
     await config.update('apiBase', '', vscode.ConfigurationTarget.Global);

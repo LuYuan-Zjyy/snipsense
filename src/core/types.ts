@@ -33,6 +33,7 @@ export interface AppSettings {
   multiFile: boolean;
   maxRelatedFiles: number;
   maxUsages: number;
+  quickJump: boolean;
 }
 
 export interface SelectionContext {

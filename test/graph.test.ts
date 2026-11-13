@@ -33,6 +33,23 @@ describe('TypeScript and JavaScript imports', () => {
     expect(imports.find((entry) => entry.source === './re-export')?.kind).toBe('re-export');
   });
 
+  it('keeps local-to-exported bindings for aliases and namespaces', () => {
+    const imports = parseImports(
+      "import def, { add as plus } from './math';\nimport * as ns from './ns';",
+      'typescript',
+    );
+    const math = imports.find((entry) => entry.source === './math');
+    expect(math?.bindings).toEqual(
+      expect.arrayContaining([
+        { localName: 'def', importedName: 'default', kind: 'default' },
+        { localName: 'plus', importedName: 'add', kind: 'named' },
+      ]),
+    );
+    expect(imports.find((entry) => entry.source === './ns')?.bindings).toEqual([
+      { localName: 'ns', importedName: '*', kind: 'namespace' },
+    ]);
+  });
+
   it('finds imported symbols used in the selection', () => {
     const imports = parseImports(source, 'typescript');
     expect(importedSymbolsUsed('const value = baz(bar(x));', imports)).toEqual(
@@ -61,9 +78,17 @@ describe('Python imports and exports', () => {
     expect(imports.find((entry) => entry.source === '.utils')?.symbols).toEqual([
       'helper',
       'Thing',
+      'T',
     ]);
-    expect(imports.some((entry) => entry.source === 'os')).toBe(true);
-    expect(imports.some((entry) => entry.source === 'pkg.mod')).toBe(true);
+    expect(imports.find((entry) => entry.source === '.utils')?.bindings).toEqual(
+      expect.arrayContaining([
+        { localName: 'helper', importedName: 'helper', kind: 'named' },
+        { localName: 'T', importedName: 'Thing', kind: 'named' },
+      ]),
+    );
+    expect(imports.find((entry) => entry.source === 'pkg.mod')?.bindings).toEqual([
+      { localName: 'pm', importedName: 'pkg.mod', kind: 'namespace' },
+    ]);
   });
 
   it('detects top-level Python definitions', () => {
@@ -102,6 +127,7 @@ describe('resolveImportCandidates', () => {
     expect(resolveImportCandidates('pkg/a.py', '.b', 'python')).toContain('pkg/b.py');
     expect(resolveImportCandidates('pkg/sub/a.py', '..b', 'python')).toContain('pkg/b.py');
     expect(resolveImportCandidates('pkg/a.py', 'pkg.b', 'python')).toContain('pkg/b.py');
+    expect(resolveImportCandidates('model/vit.py', 'layer', 'python')).toContain('model/layer.py');
   });
 
   it('maps Java imports to source paths', () => {

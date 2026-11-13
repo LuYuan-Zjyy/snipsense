@@ -25,6 +25,7 @@ const settings: AppSettings = {
   multiFile: true,
   maxRelatedFiles: 5,
   maxUsages: 6,
+  quickJump: true,
 };
 
 const selection: SelectionContext = {

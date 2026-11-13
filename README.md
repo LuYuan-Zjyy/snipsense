@@ -36,17 +36,18 @@ Cursor 自带的 `Ctrl+L` / `Cmd+L` 很强，但它仍然是“打开一个对�
 
 ## 它长什么样
 
-| 能力         | 说明                                                                |
-| ------------ | ------------------------------------------------------------------- |
-| 选中即解释   | 默认停止选择 550ms 后自动请求，可在卡片或设置里关闭                 |
-| 行尾一句话   | 在选区末尾显示简短 gloss，不打断代码排版；悬停可打开完整解释        |
-| 侧栏词典卡   | 流式输出“一句话 + 2-4 个关键点”，适合快速扫读                       |
-| 跨文件关联   | 自动找 import/export、定义片段和调用点，卡片列出“它依赖 / 谁在用它” |
-| 用法说明     | 尽量基于真实调用点讲参数、返回值、调用顺序和副作用                  |
-| 继续追问     | `再简单点`、`举个例子`、`为什么这样写`，也可以自己问                |
-| 不绑定模型   | DeepSeek、OpenAI、硅基流动、本地 Ollama、任意 OpenAI 兼容接口       |
-| 手机般的轻量 | 只发选区、附近上下文和有限关联片段，不做全项目索引、不上传遥测      |
-| 开源         | MIT，欢迎改 prompt、加 provider、提 PR                              |
+| 能力         | 说明                                                                             |
+| ------------ | -------------------------------------------------------------------------------- |
+| 选中即解释   | 默认停止选择 550ms 后自动请求，可在卡片或设置里关闭                              |
+| 行尾一句话   | 在选区末尾显示简短 gloss，不打断代码排版；悬停可打开完整解释                     |
+| 侧栏词典卡   | 流式输出“一句话 + 2-4 个关键点”，适合快速扫读                                    |
+| 跨文件关联   | 自动找 import/export、定义片段和调用点，卡片列出“它依赖 / 谁在用它”              |
+| 无 AI 跳转   | `Ctrl+点击` / `F12` 的本地静态兜底：函数、类、import、别名跨文件跳转，不耗 token |
+| 用法说明     | 尽量基于真实调用点讲参数、返回值、调用顺序和副作用                               |
+| 继续追问     | `再简单点`、`举个例子`、`为什么这样写`，也可以自己问                             |
+| 不绑定模型   | DeepSeek、OpenAI、硅基流动、本地 Ollama、任意 OpenAI 兼容接口                    |
+| 手机般的轻量 | 只发选区、附近上下文和有限关联片段，不做全项目索引、不上传遥测                   |
+| 开源         | MIT，欢迎改 prompt、加 provider、提 PR                                           |
 
 ## 先说明：有这样的插件吗？
 
@@ -65,14 +66,14 @@ Cursor 自带的 `Ctrl+L` / `Cmd+L` 很强，但它仍然是“打开一个对�
 
 ### 1. 安装
 
-从 [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases) 下载 `snipsense-0.2.0.vsix`，然后：
+从 [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases) 下载 `snipsense-0.3.0.vsix`，然后：
 
 ```bash
 # Cursor
-cursor --install-extension snipsense-0.2.0.vsix
+cursor --install-extension snipsense-0.3.0.vsix
 
 # VS Code
-code --install-extension snipsense-0.2.0.vsix
+code --install-extension snipsense-0.3.0.vsix
 ```
 
 也可以在编辑器的扩展面板里选择 **Install from VSIX**。
@@ -115,20 +116,23 @@ ollama serve
 
 - 按 `Alt+Q` 手动解释；
 - 右键 → **解释选中代码**；
-- 命令面板 → **`SnipSense: 解释选中代码`**。
+- 命令面板 → **`SnipSense: 解释选中代码`**；
+- **`Ctrl+点击`** 调用处的函数名，跨文件跳到定义（语言服务没有结果时由 SnipSense 静态兜底，不耗 token）；
+- 也可以按 **`Ctrl+Alt+J`** 或命令面板 **`SnipSense: 跳转到定义（无 AI）`**。
 
 ## 和现有工具的区别
 
-|                   | Cursor `Ctrl+L` | Copilot Chat | CodeGlance | SnipSense |
-| ----------------- | --------------- | ------------ | ---------- | --------- |
-| 选中后自动解释    | 否              | 否           | 否         | **是**    |
-| 行尾一句话        | 否              | 否           | 否         | **是**    |
-| 侧栏词典卡        | 聊天            | 聊天         | 是         | **是**    |
-| 选中后继续追问    | 是              | 是           | 否         | **是**    |
-| 跨文件依赖/调用点 | 取决于对话      | 取决于对话   | 否         | **是**    |
-| DeepSeek          | 取决于 Cursor   | 否           | 否         | **是**    |
-| 本地 Ollama       | 取决于 Cursor   | 否           | 否         | **是**    |
-| 开源              | 否              | 否           | MIT        | **MIT**   |
+|                   | Cursor `Ctrl+L` | Copilot Chat   | CodeGlance | SnipSense |
+| ----------------- | --------------- | -------------- | ---------- | --------- |
+| 选中后自动解释    | 否              | 否             | 否         | **是**    |
+| 行尾一句话        | 否              | 否             | 否         | **是**    |
+| 侧栏词典卡        | 聊天            | 聊天           | 是         | **是**    |
+| 选中后继续追问    | 是              | 是             | 否         | **是**    |
+| 跨文件依赖/调用点 | 取决于对话      | 取决于对话     | 否         | **是**    |
+| Ctrl+点击静态兜底 | 内置（视语言）  | 内置（视语言） | 否         | **是**    |
+| DeepSeek          | 取决于 Cursor   | 否             | 否         | **是**    |
+| 本地 Ollama       | 取决于 Cursor   | 否             | 否         | **是**    |
+| 开源              | 否              | 否             | MIT        | **MIT**   |
 
 这不是说谁更好。要重构、要跨文件大改，Cursor Chat / Copilot 更合适；SnipSense 负责的是读代码时最常问的那几个小问题：**这段在干嘛、它靠什么工作、别人怎么用它。**
 
@@ -153,7 +157,8 @@ ollama serve
   "snipsense.showStatusBar": true,
   "snipsense.multiFile": true,
   "snipsense.maxRelatedFiles": 5,
-  "snipsense.maxUsages": 6
+  "snipsense.maxUsages": 6,
+  "snipsense.quickJump": true
 }
 ```
 
@@ -175,6 +180,7 @@ ollama serve
 | `multiFile`         | `true`     | 分析 import/export、定义和调用点           |
 | `maxRelatedFiles`   | `5`        | 最多附带多少个依赖文件片段                 |
 | `maxUsages`         | `6`        | 最多附带多少处调用点；`0` 关闭搜索         |
+| `quickJump`         | `true`     | Ctrl+点击 / F12 的静态定义兜底，不耗 token |
 
 > `provider`、`apiBase`、`model`、`contextLines` 等会决定代码发往哪里、发多少，因此被设为 **application 级**配置，工作区的 `.vscode/settings.json` 不能偷偷改掉它们。
 
@@ -194,7 +200,7 @@ ollama serve
 
 **它怎么知道有哪些关联文件？**
 
-SnipSense 解析当前文件的 import/export，解析相对路径和常见别名（TS/JS 的 `@/`、`~/`，Python 的相对模块，Java 的包路径），再用 VS Code 的 Reference Provider 找调用点。只取和选区真正相关的符号，不会整库索引。
+SnipSense 解析当前文件的 import/export，解析相对路径和常见别名（TS/JS 的 `@/`、`~/`，Python 的相对模块和“当前目录优先”的绝对导入，Java 的包路径），再用 VS Code 的 Reference Provider 找调用点。只取和选区真正相关的符号，不会整库索引。`ViT.py` 里 `from layer import PPEmb` 会优先找同目录的 `layer.py`，再找工作区根目录和 `src/`。
 
 **为什么关联文件不准？**
 
@@ -207,6 +213,10 @@ SnipSense 解析当前文件的 import/export，解析相对路径和常见别�
 **选中后没有自动解释？**
 
 检查 `snipsense.autoExplain` 是否为 `true`；工作区是否处于 Restricted Mode；以及状态栏是否显示“未连接”（需要先配置 Key）。
+
+**Ctrl+点击还是没反应？**
+
+SnipSense 会先让语言服务处理；语言服务没有结果时，才用本地静态解析兜底。如果 Cursor 把 Ctrl+点击占用成了别的操作，按 **`Ctrl+Alt+J`**，或右键选择 **`跳转到定义（无 AI）`**。这个功能不调用模型，不消耗 token。
 
 **行尾没有出现一句话？**
 
@@ -236,7 +246,7 @@ SnipSense 解析当前文件的 import/export，解析相对路径和常见别�
 
 ```bash
 npm install
-npm run check            # 格式 + 类型 + lint + 67 个单元测试 + 构建
+npm run check            # 格式 + 类型 + lint + 76 个单元测试 + 构建
 npm run dev              # 监听 extension + webview
 npm run package          # 生成 .vsix
 npm run preview          # 生成 docs/preview.html（截图见 docs/preview.png）
@@ -260,6 +270,7 @@ scripts/            icon / preview 生成
 ## Roadmap
 
 - [ ] 解释历史 / 收藏
+- [x] Ctrl+点击的本地静态跳转兜底
 - [ ] 本地小模型自动路由（简单片段走 Ollama）
 - [ ] 代码块语法高亮
 - [ ] 英文 UI（当前 UI 中文，解释语言可切英文）

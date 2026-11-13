@@ -18,18 +18,25 @@ if (!executable) {
 }
 
 try {
+  const launchArgs = [
+    path.join(root, 'test', 'fixtures', 'workspace'),
+    '--disable-gpu',
+    '--skip-welcome',
+    '--skip-release-notes',
+  ];
+  if (process.env.SNIPSENSE_DISABLE_BUILTINS === '1') {
+    launchArgs.push('--disable-extensions');
+  }
+
   await runTests({
     vscodeExecutablePath: executable,
     extensionDevelopmentPath: root,
     extensionTestsPath: path.join(root, 'test', 'integration', 'suite.cjs'),
-    // Keep built-in language features enabled: the reference provider is part
-    // of the TS/JS language service and is needed to verify cross-file usages.
-    launchArgs: [
-      path.join(root, 'test', 'fixtures', 'workspace'),
-      '--disable-gpu',
-      '--skip-welcome',
-      '--skip-release-notes',
-    ],
+    // Built-in language features stay enabled by default: the reference
+    // provider is part of the TS/JS language service and is needed to verify
+    // cross-file usages. Set SNIPSENSE_DISABLE_BUILTINS=1 to exercise the
+    // static Ctrl+click fallback without a language server.
+    launchArgs,
   });
 } catch (error) {
   console.error('Integration tests failed.');

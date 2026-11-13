@@ -26,6 +26,15 @@ ollama serve
 
 Then select **Ollama（本地）** in the setup picker.
 
+Integration tests use the installed VS Code; they cover the engine, the static graph and the Ctrl+click fallback. To exercise the fallback without a language server:
+
+```bash
+# PowerShell
+$env:SNIPSENSE_DISABLE_BUILTINS='1'; npm run test:integration
+# macOS / Linux
+SNIPSENSE_DISABLE_BUILTINS=1 npm run test:integration
+```
+
 ## Adding a provider
 
 1. Add a `ProviderPreset` to `src/core/endpoint.ts`.

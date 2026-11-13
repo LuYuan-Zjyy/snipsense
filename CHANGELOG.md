@@ -2,6 +2,24 @@
 
 All notable changes to SnipSense are documented here.
 
+## [0.3.0] - 2026-11-13
+
+### Added
+
+- Token-free static `DefinitionProvider` for **Ctrl+click / F12**.
+- Jump across files for local declarations, imported functions/classes/types, aliases and namespace members (`ns.foo`).
+- Jump directly from an import path string to the target file.
+- Python absolute imports resolve against the current file directory first, so `ViT.py` + `from layer import PPEmb` finds the adjacent `layer.py`.
+- `SnipSense: 跳转到定义（无 AI）` command and `Ctrl+Alt+J` binding.
+- `quickJump` setting.
+- Local-to-exported binding metadata (`add as plus`, default imports, namespace imports, `require`).
+- 9 new unit tests (76 total) and integration coverage for a cursor-on-call jump to `math.ts`, both with the language server and with built-ins disabled (`SNIPSENSE_DISABLE_BUILTINS=1`).
+
+### Changed
+
+- The static definition provider first asks the language server; it only returns a fallback when the language server has no definition. This avoids duplicate Ctrl+click results in VS Code while keeping the fallback for Cursor/languages where the server has no answer.
+- No AI request is made for navigation.
+
 ## [0.2.0] - 2026-11-13
 
 ### Added

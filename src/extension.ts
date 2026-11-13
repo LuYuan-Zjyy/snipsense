@@ -15,6 +15,7 @@ import type { ProviderId } from './core/types';
 import { CardViewProvider } from './vscode/cardView';
 import { ExplainerController } from './vscode/controller';
 import { getApiKey, readSettings, saveApiKey } from './vscode/config';
+import { StaticDefinitionProvider } from './vscode/navigation';
 
 interface ProviderItem extends vscode.QuickPickItem {
   id: ProviderId;
@@ -25,15 +26,18 @@ export function activate(context: vscode.ExtensionContext): void {
   const version = String(context.extension.packageJSON.version ?? '0.1.0');
   const card = new CardViewProvider(context.extensionUri, version);
   const controller = new ExplainerController(context, card, output);
+  const navigation = new StaticDefinitionProvider(output);
 
   context.subscriptions.push(
     output,
     controller,
+    vscode.languages.registerDefinitionProvider({ scheme: 'file' }, navigation),
     vscode.window.registerWebviewViewProvider('snipsense.card', card, {
       webviewOptions: { retainContextWhenHidden: true },
     }),
     vscode.commands.registerCommand('snipsense.explainSelection', () => controller.explain()),
     vscode.commands.registerCommand('snipsense.openCard', () => void card.reveal()),
+    vscode.commands.registerCommand('snipsense.goToDefinition', () => goToDefinition(navigation)),
     vscode.commands.registerCommand('snipsense.setup', () => configureModel(context, controller)),
     vscode.commands.registerCommand('snipsense.testConnection', () =>
       testConnection(context, output),
@@ -47,6 +51,36 @@ export function activate(context: vscode.ExtensionContext): void {
 
 export function deactivate(): void {
   // Everything is disposed through context.subscriptions.
+}
+
+async function goToDefinition(navigation: StaticDefinitionProvider): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return;
+
+  const tokenSource = new vscode.CancellationTokenSource();
+  try {
+    const locations = await navigation.provideDefinition(
+      editor.document,
+      editor.selection.active,
+      tokenSource.token,
+      true,
+    );
+    if (!locations || locations.length === 0) {
+      void vscode.window.showInformationMessage(
+        'SnipSense 没有找到这个符号的静态定义。可以按 F12 试试语言服务。',
+      );
+      return;
+    }
+
+    const location = locations[0];
+    if (!location) return;
+    const document = await vscode.workspace.openTextDocument(location.uri);
+    const target = await vscode.window.showTextDocument(document, { preview: false });
+    target.selection = new vscode.Selection(location.range.start, location.range.start);
+    target.revealRange(location.range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+  } finally {
+    tokenSource.dispose();
+  }
 }
 
 async function configureModel(

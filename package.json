@@ -2,7 +2,7 @@
   "name": "snipsense",
   "displayName": "SnipSense · 选中即懂",
   "description": "选中一段代码，像查字典一样读懂它，并顺手理清跨文件依赖和真实用法。行尾一句话，侧栏一张卡，支持 DeepSeek / OpenAI / Ollama。",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "luyuan-zjyy",
   "license": "MIT",
   "author": {
@@ -66,6 +66,12 @@
         "icon": "$(book)"
       },
       {
+        "command": "snipsense.goToDefinition",
+        "title": "跳转到定义（无 AI）",
+        "category": "SnipSense",
+        "icon": "$(arrow-right)"
+      },
+      {
         "command": "snipsense.setup",
         "title": "设置模型与 API Key",
         "category": "SnipSense",
@@ -96,10 +102,21 @@
         "key": "alt+q",
         "mac": "alt+q",
         "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "snipsense.goToDefinition",
+        "key": "ctrl+alt+j",
+        "mac": "cmd+alt+j",
+        "when": "editorTextFocus"
       }
     ],
     "menus": {
       "editor/context": [
+        {
+          "command": "snipsense.goToDefinition",
+          "when": "editorTextFocus",
+          "group": "navigation@1"
+        },
         {
           "command": "snipsense.explainSelection",
           "when": "editorHasSelection",
@@ -107,6 +124,10 @@
         }
       ],
       "commandPalette": [
+        {
+          "command": "snipsense.goToDefinition",
+          "when": "editorTextFocus"
+        },
         {
           "command": "snipsense.explainSelection",
           "when": "editorHasSelection"
@@ -287,6 +308,12 @@
           "maximum": 20,
           "scope": "application",
           "description": "最多附带多少处跨文件调用点。设为 0 可关闭调用点搜索。"
+        },
+        "snipsense.quickJump": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "为 Ctrl+点击 / F12 提供本地静态定义兜底（import、函数、类等）。不调用 AI、不消耗 token。"
         }
       }
     }

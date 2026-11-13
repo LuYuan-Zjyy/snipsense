@@ -13,10 +13,17 @@ export type ImportKind =
   | 'dynamic'
   | 'generic';
 
+export interface ImportBinding {
+  localName: string;
+  importedName: string;
+  kind: 'named' | 'default' | 'namespace';
+}
+
 export interface ParsedImport {
   source: string;
   symbols: string[];
   kind: ImportKind;
+  bindings: ImportBinding[];
 }
 
 export interface RelatedFile {
@@ -59,13 +66,20 @@ export function parseImports(text: string, languageId: string): ParsedImport[] {
   const imports: ParsedImport[] = [];
   const bySource = new Map<string, ParsedImport>();
 
-  const add = (source: string, symbols: string[], kind: ImportKind): void => {
+  const add = (
+    source: string,
+    symbols: string[],
+    kind: ImportKind,
+    bindings: ImportBinding[] = [],
+  ): void => {
     const clean = source.trim();
     if (!clean) return;
     const normalizedSymbols = unique(symbols.map((symbol) => symbol.trim()).filter(Boolean));
+    const normalizedBindings = bindings.filter((binding) => binding.localName);
     const existing = bySource.get(clean);
     if (existing) {
       existing.symbols = unique([...existing.symbols, ...normalizedSymbols]);
+      existing.bindings = mergeBindings(existing.bindings, normalizedBindings);
       if (existing.symbols.length > 0 && existing.kind === 'side-effect') {
         existing.kind = kind;
       }
@@ -75,6 +89,7 @@ export function parseImports(text: string, languageId: string): ParsedImport[] {
       source: clean,
       symbols: normalizedSymbols,
       kind,
+      bindings: normalizedBindings,
     };
     bySource.set(clean, entry);
     imports.push(entry);
@@ -87,7 +102,12 @@ export function parseImports(text: string, languageId: string): ParsedImport[] {
       const clause = match[2] ?? '';
       const source = match[3] ?? '';
       const parsed = parseTsClause(clause);
-      add(source, parsed.symbols, keyword === 'export' ? 're-export' : parsed.kind);
+      add(
+        source,
+        parsed.symbols,
+        keyword === 'export' ? 're-export' : parsed.kind,
+        parsed.bindings,
+      );
     }
 
     const sideEffectRe = /\bimport\s+['"]([^'"]+)['"]/g;
@@ -100,7 +120,8 @@ export function parseImports(text: string, languageId: string): ParsedImport[] {
     for (const match of text.matchAll(requireRe)) {
       const clause = match[1] ?? '';
       const source = match[2] ?? '';
-      add(source, parseRequireClause(clause), 'require');
+      const parsed = parseRequireClause(clause);
+      add(source, parsed.symbols, 'require', parsed.bindings);
     }
 
     const dynamicRe = /\bimport\(\s*['"]([^'"]+)['"]\s*\)/g;
@@ -111,12 +132,16 @@ export function parseImports(text: string, languageId: string): ParsedImport[] {
     const fromRe = /^\s*from\s+([.\w]+)\s+import\s+([^\n#]+)/gm;
     for (const match of text.matchAll(fromRe)) {
       const source = match[1] ?? '';
-      const names = (match[2] ?? '')
-        .replace(/[()]/g, '')
-        .split(',')
-        .map((item) => item.trim().split(/\s+as\s+/)[0] ?? '')
-        .filter((item) => item && item !== '*');
-      add(source, names, 'named');
+      const names: string[] = [];
+      const bindings: ImportBinding[] = [];
+      for (const item of (match[2] ?? '').replace(/[()]/g, '').split(',')) {
+        const [importedName, alias] = item.trim().split(/\s+as\s+/);
+        if (!importedName || importedName === '*') continue;
+        const localName = (alias ?? importedName).trim();
+        names.push(importedName, localName);
+        bindings.push({ localName, importedName, kind: 'named' });
+      }
+      add(source, names, 'named', bindings);
     }
 
     const importRe = /^\s*import\s+([^\n#]+)/gm;
@@ -124,7 +149,10 @@ export function parseImports(text: string, languageId: string): ParsedImport[] {
       for (const item of (match[1] ?? '').split(',')) {
         const [moduleName, alias] = item.trim().split(/\s+as\s+/);
         if (!moduleName) continue;
-        add(moduleName, [alias ?? moduleName.split('.').pop() ?? moduleName], 'default');
+        const localName = (alias ?? moduleName.split('.').pop() ?? moduleName).trim();
+        add(moduleName, [localName], 'default', [
+          { localName, importedName: moduleName, kind: 'namespace' },
+        ]);
       }
     }
   } else {
@@ -132,7 +160,10 @@ export function parseImports(text: string, languageId: string): ParsedImport[] {
       const javaRe = /^\s*import\s+(?:static\s+)?([\w.]+)\s*;/gm;
       for (const match of text.matchAll(javaRe)) {
         const source = match[1] ?? '';
-        add(source, [source.split('.').pop() ?? source], 'generic');
+        const localName = source.split('.').pop() ?? source;
+        add(source, [localName], 'generic', [
+          { localName, importedName: localName, kind: 'named' },
+        ]);
       }
     }
 
@@ -239,7 +270,7 @@ export function resolveImportCandidates(
 
   if (language === 'python') {
     if (clean.startsWith('.')) return pythonRelativeCandidates(fromDir, clean);
-    return pythonAbsoluteCandidates(clean);
+    return pythonAbsoluteCandidates(fromDir, clean);
   }
 
   if (/^(java|kotlin)$/i.test(languageId) && !clean.startsWith('.')) {
@@ -353,43 +384,86 @@ export function graphDataFromView(view: GraphView): GraphData {
   };
 }
 
-function parseTsClause(raw: string): { symbols: string[]; kind: ImportKind } {
+function parseTsClause(raw: string): {
+  symbols: string[];
+  kind: ImportKind;
+  bindings: ImportBinding[];
+} {
   const clause = raw.replace(/^type\s+/i, '').trim();
-  if (clause === '*') return { symbols: ['*'], kind: 'namespace' };
+  if (clause === '*') return { symbols: ['*'], kind: 'namespace', bindings: [] };
 
   const namespace = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
-  if (namespace?.[1]) return { symbols: [namespace[1]], kind: 'namespace' };
+  if (namespace?.[1]) {
+    return {
+      symbols: [namespace[1]],
+      kind: 'namespace',
+      bindings: [{ localName: namespace[1], importedName: '*', kind: 'namespace' }],
+    };
+  }
 
   const symbols: string[] = [];
+  const bindings: ImportBinding[] = [];
   const namedMatch = clause.match(/\{([\s\S]*)\}/);
   if (namedMatch?.[1]) {
     for (const item of namedMatch[1].split(',')) {
       const clean = item.replace(/^type\s+/i, '').trim();
       if (!clean) continue;
       const [sourceName, alias] = clean.split(/\s+as\s+/).map((part) => part.trim());
-      if (sourceName) symbols.push(sourceName);
-      if (alias) symbols.push(alias);
+      if (!sourceName) continue;
+      const localName = (alias ?? sourceName).trim();
+      symbols.push(sourceName);
+      if (localName !== sourceName) symbols.push(localName);
+      bindings.push({ localName, importedName: sourceName, kind: 'named' });
     }
   }
 
   const beforeBraces = clause.split('{')[0]?.replace(/,\s*$/, '').trim() ?? '';
   if (beforeBraces && !beforeBraces.startsWith('*') && /^[A-Za-z_$]/.test(beforeBraces)) {
     symbols.unshift(beforeBraces);
+    bindings.unshift({ localName: beforeBraces, importedName: 'default', kind: 'default' });
   }
 
-  return { symbols: unique(symbols), kind: symbols.length ? 'named' : 'default' };
+  return {
+    symbols: unique(symbols),
+    kind: symbols.length ? 'named' : 'default',
+    bindings: mergeBindings([], bindings),
+  };
 }
 
-function parseRequireClause(clause: string): string[] {
+function parseRequireClause(clause: string): {
+  symbols: string[];
+  bindings: ImportBinding[];
+} {
   const clean = clause.trim();
   if (clean.startsWith('{')) {
-    return clean
-      .slice(1, -1)
-      .split(',')
-      .map((item) => item.trim().split(':').pop()?.trim() ?? '')
-      .filter(Boolean);
+    const symbols: string[] = [];
+    const bindings: ImportBinding[] = [];
+    for (const item of clean.slice(1, -1).split(',')) {
+      const [importedName, alias] = item
+        .trim()
+        .split(':')
+        .map((part) => part.trim());
+      if (!importedName) continue;
+      const localName = alias ?? importedName;
+      symbols.push(localName);
+      bindings.push({ localName, importedName, kind: 'named' });
+    }
+    return { symbols, bindings };
   }
-  return clean ? [clean] : [];
+  return clean
+    ? {
+        symbols: [clean],
+        bindings: [{ localName: clean, importedName: '*', kind: 'namespace' }],
+      }
+    : { symbols: [], bindings: [] };
+}
+
+function mergeBindings(existing: ImportBinding[], incoming: ImportBinding[]): ImportBinding[] {
+  const merged = new Map<string, ImportBinding>();
+  for (const binding of [...existing, ...incoming]) {
+    if (binding.localName) merged.set(binding.localName, binding);
+  }
+  return [...merged.values()];
 }
 
 function pythonRelativeCandidates(fromDir: string, source: string): string[] {
@@ -401,10 +475,16 @@ function pythonRelativeCandidates(fromDir: string, source: string): string[] {
   return fileCandidates([`${target}.py`, `${target}/__init__.py`, `${target}/mod.py`], 'python');
 }
 
-function pythonAbsoluteCandidates(source: string): string[] {
+function pythonAbsoluteCandidates(fromDir: string, source: string): string[] {
   const modulePath = source.replace(/\./g, '/');
+  // Python's absolute imports are resolved against the current file directory
+  // (and sys.path), not necessarily the workspace root. Try the adjacent file
+  // first: this covers the common `ViT.py` + `layer.py` layout.
+  const localBase = fromDir && fromDir !== '.' ? `${fromDir}/${modulePath}` : modulePath;
   return fileCandidates(
     [
+      `${localBase}.py`,
+      `${localBase}/__init__.py`,
       `${modulePath}.py`,
       `${modulePath}/__init__.py`,
       `src/${modulePath}.py`,
@@ -417,9 +497,9 @@ function pythonAbsoluteCandidates(source: string): string[] {
 function fileCandidates(bases: string[], language: GraphLanguage): string[] {
   const extensions =
     language === 'ts'
-      ? ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte']
+      ? ['.d.ts', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte']
       : language === 'python'
-        ? ['.py']
+        ? ['.py', '.pyi']
         : ['.ts', '.tsx', '.js', '.jsx', '.py', '.java', '.go', '.rs'];
 
   const candidates: string[] = [];

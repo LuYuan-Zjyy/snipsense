@@ -631,6 +631,6 @@ function defaultState(): CardState {
     graph: null,
     multiFile: true,
     untrusted: false,
-    version: '0.2.0',
+    version: '0.3.0',
   };
 }
