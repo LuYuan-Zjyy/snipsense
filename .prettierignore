@@ -2,5 +2,6 @@ dist
 node_modules
 coverage
 docs/preview.html
+docs/repo-map-preview.html
 package-lock.json
 *.vsix

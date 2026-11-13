@@ -203,6 +203,10 @@ export class ExplainerController implements vscode.Disposable, CardActions {
     void revealSelection(this.current.context);
   }
 
+  openRepoMap(): void {
+    void vscode.commands.executeCommand('snipsense.openRepoMap');
+  }
+
   openRelated(uri: string, line: number): void {
     const allowed =
       this.state.graph?.dependencies.some((item) => item.uri === uri) ||

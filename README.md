@@ -1,6 +1,6 @@
 # SnipSense · 选中即懂
 
-> 选中一段代码，像查字典一样读懂它。
+> 从一段代码，读到整个仓库。
 
 [![CI](https://github.com/LuYuan-Zjyy/snipsense/actions/workflows/ci.yml/badge.svg)](https://github.com/LuYuan-Zjyy/snipsense/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-6ee7b7.svg)](LICENSE)
@@ -42,12 +42,30 @@ Cursor 自带的 `Ctrl+L` / `Cmd+L` 很强，但它仍然是“打开一个对�
 | 行尾一句话   | 在选区末尾显示简短 gloss，不打断代码排版；悬停可打开完整解释                     |
 | 侧栏词典卡   | 流式输出“一句话 + 2-4 个关键点”，适合快速扫读                                    |
 | 跨文件关联   | 自动找 import/export、定义片段和调用点，卡片列出“它依赖 / 谁在用它”              |
+| 仓库地图     | 本地扫描依赖图，按 PageRank 找关键文件、入口和阅读顺序；点击节点直接跳文件       |
+| AI 导读      | 基于仓库地图生成 30-60 分钟阅读路线，只发路径/符号/依赖边，不发完整源码          |
 | 无 AI 跳转   | `Ctrl+点击` / `F12` 的本地静态兜底：函数、类、import、别名跨文件跳转，不耗 token |
 | 用法说明     | 尽量基于真实调用点讲参数、返回值、调用顺序和副作用                               |
 | 继续追问     | `再简单点`、`举个例子`、`为什么这样写`，也可以自己问                             |
 | 不绑定模型   | DeepSeek、OpenAI、硅基流动、本地 Ollama、任意 OpenAI 兼容接口                    |
-| 手机般的轻量 | 只发选区、附近上下文和有限关联片段，不做全项目索引、不上传遥测                   |
+| 手机般的轻量 | 仓库扫描只在本机；不建云端索引、不上传遥测                                       |
 | 开源         | MIT，欢迎改 prompt、加 provider、提 PR                                           |
+
+## 从一段代码到整个仓库
+
+`Ctrl+Alt+M`、命令面板 **`SnipSense: 打开仓库地图`**，或点侧栏卡片顶部的地图图标：
+
+<img src="https://raw.githubusercontent.com/LuYuan-Zjyy/snipsense/main/docs/repomap.png" alt="SnipSense 仓库地图" width="900" />
+
+地图完全在本地生成，不调用 AI：
+
+- 扫描工作区代码，解析 import/export 和相邻文件依赖；
+- 用 PageRank 找出“被依赖最多”的关键文件；
+- 标出入口文件，给出推荐阅读顺序；
+- 可交互依赖图：节点大小=重要程度，颜色=语言，点击直接打开文件；
+- 复制成 Markdown，可直接贴进项目文档或交接说明。
+
+右侧 **生成 AI 导读** 是可选动作：只把文件路径、符号和依赖边发给模型，生成一条 30–60 分钟的阅读路线，不发送完整源码。
 
 ## 先说明：有这样的插件吗？
 
@@ -66,14 +84,14 @@ Cursor 自带的 `Ctrl+L` / `Cmd+L` 很强，但它仍然是“打开一个对�
 
 ### 1. 安装
 
-从 [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases) 下载 `snipsense-0.3.0.vsix`，然后：
+从 [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases) 下载 `snipsense-0.4.0.vsix`，然后：
 
 ```bash
 # Cursor
-cursor --install-extension snipsense-0.3.0.vsix
+cursor --install-extension snipsense-0.4.0.vsix
 
 # VS Code
-code --install-extension snipsense-0.3.0.vsix
+code --install-extension snipsense-0.4.0.vsix
 ```
 
 也可以在编辑器的扩展面板里选择 **Install from VSIX**。
@@ -118,7 +136,8 @@ ollama serve
 - 右键 → **解释选中代码**；
 - 命令面板 → **`SnipSense: 解释选中代码`**；
 - **`Ctrl+点击`** 调用处的函数名，跨文件跳到定义（语言服务没有结果时由 SnipSense 静态兜底，不耗 token）；
-- 也可以按 **`Ctrl+Alt+J`** 或命令面板 **`SnipSense: 跳转到定义（无 AI）`**。
+- 也可以按 **`Ctrl+Alt+J`** 或命令面板 **`SnipSense: 跳转到定义（无 AI）`**；
+- 按 **`Ctrl+Alt+M`**，或命令面板 **`SnipSense: 打开仓库地图`**，看整个仓库的入口、关键文件和依赖图。
 
 ## 和现有工具的区别
 
@@ -130,6 +149,7 @@ ollama serve
 | 选中后继续追问    | 是              | 是             | 否         | **是**    |
 | 跨文件依赖/调用点 | 取决于对话      | 取决于对话     | 否         | **是**    |
 | Ctrl+点击静态兜底 | 内置（视语言）  | 内置（视语言） | 否         | **是**    |
+| 仓库地图/阅读路线 | 否              | 否             | 否         | **是**    |
 | DeepSeek          | 取决于 Cursor   | 否             | 否         | **是**    |
 | 本地 Ollama       | 取决于 Cursor   | 否             | 否         | **是**    |
 | 开源              | 否              | 否             | MIT        | **MIT**   |
@@ -193,6 +213,8 @@ ollama serve
 - API Key 存在 VS Code `SecretStorage`，不写入设置文件，不写日志。
 - 解释缓存只保存 `gist/detail`、少量关联元数据（含调用行文本）和哈希键，不保存完整文件；缓存键不可逆。
 - 多文件分析只在工作区文件内做路径解析，不递归扫描整个项目。
+- 仓库地图的扫描、依赖图和 PageRank 全在本机完成，不调用 AI。
+- **生成 AI 导读**只发送仓库地图摘要（文件路径、符号、依赖边），不发送完整源码；这是你主动点击后才发生的。
 - 未受信任的工作区（Restricted Mode）会暂停自动解释，只有你手动执行解释时才发送。
 - 如果代码含密钥、隐私数据，请关闭 `multiFile`、改用本地 Ollama，或不要选中发送。
 
@@ -208,7 +230,15 @@ SnipSense 解析当前文件的 import/export，解析相对路径和常见别�
 
 **它会递归分析整个依赖树吗？**
 
-不会。SnipSense 只做“选中代码这一跳”：直接 import 的定义片段 + 直接调用点，避免把整个项目塞进上下文和账单。多跳依赖可以后续做成可选能力。
+选中解释只做“这一跳”：直接 import 的定义片段 + 直接调用点。仓库地图会看整个工作区，但只做静态依赖图，不做运行时分析。
+
+**仓库地图会扫描多大？**
+
+默认最多 1200 个代码文件，跳过 `node_modules`、`.git`、`dist`、`target`、`venv` 等目录，以及超大文件和压缩产物。仓库特别大时会显示“地图已截断”。
+
+**AI 导读会把代码发出去吗？**
+
+不会发送完整源码。只发文件路径、符号名、依赖边和入口/关键文件统计。你点击“生成 AI 导读”才会调用模型，不点就不耗 token。
 
 **选中后没有自动解释？**
 
@@ -246,10 +276,11 @@ SnipSense 会先让语言服务处理；语言服务没有结果时，才用本�
 
 ```bash
 npm install
-npm run check            # 格式 + 类型 + lint + 76 个单元测试 + 构建
-npm run dev              # 监听 extension + webview
+npm run check            # 格式 + 类型 + lint + 80 个单元测试 + 构建
+npm run dev              # 监听 extension + webview + repo map
 npm run package          # 生成 .vsix
 npm run preview          # 生成 docs/preview.html（截图见 docs/preview.png）
+npm run preview:map      # 生成 docs/repo-map-preview.html（截图见 docs/repomap.png）
 npm run test:integration # 启动 VS Code 测试宿主，用本地 mock 模型跑端到端流程
 ```
 
@@ -258,9 +289,9 @@ npm run test:integration # 启动 VS Code 测试宿主，用本地 mock 模型�
 目录：
 
 ```text
-src/core/           纯逻辑：prompt、SSE、parser、缓存、endpoint、跨文件图
-src/vscode/         控制器、侧栏 Webview、选择捕获、配置、依赖分析
-webview/            词典卡片 UI（marked + DOMPurify）
+src/core/           纯逻辑：prompt、SSE、parser、缓存、endpoint、跨文件图、仓库地图
+src/vscode/         控制器、侧栏 Webview、选择捕获、配置、依赖分析、地图面板
+webview/            词典卡片 + 仓库地图 UI（marked + DOMPurify）
 test/               Vitest 单元测试
 scripts/            icon / preview 生成
 ```
@@ -271,12 +302,24 @@ scripts/            icon / preview 生成
 
 - [ ] 解释历史 / 收藏
 - [x] Ctrl+点击的本地静态跳转兜底
+- [x] 仓库地图 + AI 导读
 - [ ] 本地小模型自动路由（简单片段走 Ollama）
 - [ ] 代码块语法高亮
 - [ ] 英文 UI（当前 UI 中文，解释语言可切英文）
 - [ ] Go / Rust 的模块解析增强
 - [ ] 团队共享 prompt 预设
 - [ ] 发布到 Open VSX
+
+## 设计参考
+
+仓库地图不是凭空造的，调研过这些项目：
+
+- [Aider](https://github.com/Aider-AI/aider) 的 repo map：tree-sitter + 图排序，思路最接近；但它是 Python + tree-sitter + networkx，塞进 VS Code 插件太重。
+- [Repomix](https://github.com/yamadashy/repomix)：把仓库压成 AI 友好的单文件，适合“喂给模型”，但没有交互式依赖图和以文件为起点的阅读路线。
+- [code-graph-rag](https://github.com/vitali87/code-graph-rag)：多语言知识图谱 + RAG，能力很强，但依赖 Memgraph/Neo4j 和 Docker，不适合个人随手打开。
+- [DeepWiki](https://github.com/AsyncFuncAI/deepwiki-open)、[RepoAgent](https://github.com/OpenBMB/RepoAgent)：偏仓库文档生成，需要服务端/LLM 流程。
+
+所以这里只借“依赖图 + PageRank 找关键文件”的核心，用原生 TypeScript 重写，保持插件零外部服务、秒开、可点击。
 
 ## License
 

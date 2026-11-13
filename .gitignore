@@ -7,5 +7,6 @@ coverage/
 Thumbs.db
 .vscode-test/
 docs/preview.html
+docs/repo-map-preview.html
 .env
 .env.*

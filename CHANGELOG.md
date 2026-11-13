@@ -2,6 +2,24 @@
 
 All notable changes to SnipSense are documented here.
 
+## [0.4.0] - 2026-11-13
+
+### Added
+
+- Local **repository map** engine: scans workspace code, resolves imports, builds a directed dependency graph and ranks files with PageRank.
+- Entry-point detection and a recommended reading route.
+- Interactive webview panel with a force-laid-out dependency graph, key-file list and click-to-open nodes.
+- `SnipSense: 打开仓库地图` command, `Ctrl+Alt+M` binding, editor context menu and card header button.
+- Optional **AI reading path** grounded in the map. It streams a 30–60 minute onboarding guide and sends only paths/symbols/edges, not full source.
+- Copy the map as Markdown for onboarding docs.
+- 4 new unit tests (80 total) and integration coverage for opening the map panel.
+- Map preview asset at `docs/repomap.png`.
+
+### Notes
+
+- The map is entirely local and token-free. It scans up to 1200 files, excludes common build/vendor directories, and reports when truncated.
+- The map is a static approximation; dynamic imports, runtime wiring and unresolved language-specific modules may be missing.
+
 ## [0.3.0] - 2026-11-13
 
 ### Added

@@ -12,6 +12,7 @@ SnipSense is a tiny code dictionary for **Cursor** and **VS Code**. Select any s
 - a one-line plain-English gloss at the end of the selection;
 - a streaming side-panel card with the key mechanics, edge cases and traps;
 - a bounded cross-file view: what it imports, who calls it, and how it is actually used;
+- an interactive repo map with entry points, key files and a dependency graph;
 - follow-up questions without copying, switching tabs or losing your place.
 
 It is not another chat window. It is the layer you reach for while reading unfamiliar code.
@@ -29,6 +30,8 @@ Cursor's built-in `Ctrl+L` is great for a deep conversation. SnipSense is for th
 - Streaming side-panel card, optimised for scanning.
 - Cross-file dependency analysis: imports/exports, definition excerpts and reference call sites.
 - Token-free Ctrl+click / F12 fallback for functions, classes, imports and aliases.
+- Repo map: local dependency scan, PageRank key files, entry points, clickable graph.
+- Optional AI reading path grounded in the map; sends paths/symbols/edges, not full source.
 - Usage-aware prompt: real arguments, return values, ordering and side effects where evidence exists.
 - Follow-up chips: simpler, example, why written this way.
 - DeepSeek, OpenAI, SiliconFlow, local Ollama and any OpenAI-compatible endpoint.
@@ -37,12 +40,12 @@ Cursor's built-in `Ctrl+L` is great for a deep conversation. SnipSense is for th
 
 ## Install
 
-Download `snipsense-0.3.0.vsix` from [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases), then:
+Download `snipsense-0.4.0.vsix` from [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases), then:
 
 ```bash
-cursor --install-extension snipsense-0.3.0.vsix
+cursor --install-extension snipsense-0.4.0.vsix
 # or
-code --install-extension snipsense-0.3.0.vsix
+code --install-extension snipsense-0.4.0.vsix
 ```
 
 Reload the window. Run **`SnipSense: 设置模型与 API Key`** from the Command Palette and pick a provider.
@@ -64,9 +67,24 @@ Select **Ollama（本地）** in SnipSense and test the connection. No API key a
 4. Hover it and open the full explanation, or click the SnipSense status-bar item.
 5. Use the **Related** section to jump to a dependency or a real call site.
 6. `Ctrl+click` an imported function/class name to jump to its definition. If the language server has no answer, SnipSense provides a static fallback with no AI call. `Ctrl+Alt+J` runs the same jump from the keyboard.
-7. Ask a follow-up at the bottom of the card.
+7. Press `Ctrl+Alt+M` or run **`SnipSense: 打开仓库地图`** to open the interactive repo map.
+8. Ask a follow-up at the bottom of the card.
 
 The card lives in the activity bar. For the best reading layout, drag the view to the Secondary Side Bar on the right.
+
+## Repo map
+
+<img src="https://raw.githubusercontent.com/LuYuan-Zjyy/snipsense/main/docs/repomap.png" alt="SnipSense repo map" width="900" />
+
+The map is generated locally and costs no tokens:
+
+- scans code files, resolves imports and builds a directed dependency graph;
+- ranks files with PageRank to surface the most important modules;
+- detects entry points and proposes a reading order;
+- renders a clickable graph (node size = importance, colour = language);
+- can be copied as Markdown for onboarding docs.
+
+The optional **AI reading path** sends only paths, symbols and dependency edges — never full source — and runs only when you click it.
 
 ## Compared with existing tools
 
@@ -78,6 +96,7 @@ The card lives in the activity bar. For the best reading layout, drag the view t
 | Follow-up on same snippet      | Yes               | Yes             | No         | **Yes**   |
 | Cross-file deps / call sites   | Depends on chat   | Depends on chat | No         | **Yes**   |
 | Token-free Ctrl+click fallback | Built-in          | Built-in        | No         | **Yes**   |
+| Interactive repo map           | No                | No              | No         | **Yes**   |
 | DeepSeek                       | Depends on Cursor | No              | No         | **Yes**   |
 | Local Ollama                   | Depends on Cursor | No              | No         | **Yes**   |
 | Open source                    | No                | No              | MIT        | **MIT**   |
@@ -88,17 +107,24 @@ There are close alternatives — [CodeGlance](https://github.com/haarshitgarg/Co
 
 By default, SnipSense sends the selected code, a configurable number of surrounding lines, the relative file name, language and line numbers. With multi-file enabled, it also sends a bounded set of definition excerpts from imports actually used by the selection (up to `maxRelatedFiles`) and up to `maxUsages` real reference sites. It never indexes the whole project or `node_modules`, and there is no telemetry or account. Keys are stored in `SecretStorage`; the explanation cache stores the explanation, small graph metadata (including call-site lines) and an irreversible hash. Auto-explain is paused in untrusted workspaces.
 
+The repo map is built locally and makes no AI request. The optional AI reading path sends only the map summary (paths, symbols, edges), not full source.
+
 ## Development
 
 ```bash
 npm install
-npm run check            # format + typecheck + lint + 76 tests + build
+npm run check            # format + typecheck + lint + 80 tests + build
 npm run package          # build a .vsix
 npm run preview          # generate docs/preview.html
+npm run preview:map      # generate docs/repo-map-preview.html
 npm run test:integration # VS Code test host + local mock model, end to end
 ```
 
 Press `F5` in VS Code/Cursor to launch an Extension Development Host.
+
+## Design notes
+
+The repo map is inspired by [Aider](https://github.com/Aider-AI/aider)'s repo map (tree-sitter + graph ranking), but reimplemented in TypeScript around the existing import graph so the extension needs no Python, tree-sitter runtime, Docker or graph database. [Repomix](https://github.com/yamadashy/repomix) and [code-graph-rag](https://github.com/vitali87/code-graph-rag) were also evaluated; they are excellent at packaging or graph RAG, but heavier than a personal editor plugin needs.
 
 ## License
 

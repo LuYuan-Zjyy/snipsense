@@ -37,11 +37,20 @@ const webview = await esbuild.context({
   target: 'chrome110',
 });
 
+const repoMap = await esbuild.context({
+  ...shared,
+  entryPoints: ['webview/repoMap.ts'],
+  outfile: 'dist/repoMap.js',
+  platform: 'browser',
+  format: 'iife',
+  target: 'chrome110',
+});
+
 if (watch) {
-  await Promise.all([extension.watch(), webview.watch()]);
-  console.log('SnipSense: watching extension + webview');
+  await Promise.all([extension.watch(), webview.watch(), repoMap.watch()]);
+  console.log('SnipSense: watching extension + webview + repo map');
 } else {
-  await Promise.all([extension.rebuild(), webview.rebuild()]);
-  await Promise.all([extension.dispose(), webview.dispose()]);
+  await Promise.all([extension.rebuild(), webview.rebuild(), repoMap.rebuild()]);
+  await Promise.all([extension.dispose(), webview.dispose(), repoMap.dispose()]);
   console.log('SnipSense: build complete');
 }

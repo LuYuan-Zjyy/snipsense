@@ -15,6 +15,7 @@ export interface CardActions {
   copy(): void;
   openFile(): void;
   openRelated(uri: string, line: number): void;
+  openRepoMap(): void;
   openLink(url: string): void;
   clearCache(): void;
 }
@@ -176,6 +177,9 @@ export class CardViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         ) {
           actions.openRelated(message.uri, message.line);
         }
+        break;
+      case 'repoMap':
+        actions.openRepoMap();
         break;
       case 'openLink':
         if (typeof message.url === 'string') actions.openLink(message.url);

@@ -1,8 +1,8 @@
 {
   "name": "snipsense",
   "displayName": "SnipSense · 选中即懂",
-  "description": "选中一段代码，像查字典一样读懂它，并顺手理清跨文件依赖和真实用法。行尾一句话，侧栏一张卡，支持 DeepSeek / OpenAI / Ollama。",
-  "version": "0.3.0",
+  "description": "从一段代码读到整个仓库：选中即解释、跨文件依赖、Ctrl+点击跳转和可交互仓库地图。支持 DeepSeek / OpenAI / Ollama。",
+  "version": "0.4.0",
   "publisher": "luyuan-zjyy",
   "license": "MIT",
   "author": {
@@ -34,6 +34,8 @@
     "code dictionary",
     "multi-file",
     "code-graph",
+    "repo-map",
+    "codebase",
     "deepseek",
     "ollama",
     "openai"
@@ -72,6 +74,12 @@
         "icon": "$(arrow-right)"
       },
       {
+        "command": "snipsense.openRepoMap",
+        "title": "打开仓库地图",
+        "category": "SnipSense",
+        "icon": "$(map)"
+      },
+      {
         "command": "snipsense.setup",
         "title": "设置模型与 API Key",
         "category": "SnipSense",
@@ -108,10 +116,21 @@
         "key": "ctrl+alt+j",
         "mac": "cmd+alt+j",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "snipsense.openRepoMap",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m",
+        "when": "editorTextFocus"
       }
     ],
     "menus": {
       "editor/context": [
+        {
+          "command": "snipsense.openRepoMap",
+          "when": "editorTextFocus",
+          "group": "navigation@0"
+        },
         {
           "command": "snipsense.goToDefinition",
           "when": "editorTextFocus",
@@ -332,6 +351,7 @@
     "check": "npm run format:check && npm run typecheck && npm run lint && npm run test && npm run build",
     "package": "npm run build && vsce package --no-dependencies",
     "preview": "npm run build && node scripts/build-preview.mjs",
+    "preview:map": "npm run build && node scripts/build-repomap-preview.mjs",
     "vscode:prepublish": "npm run build"
   },
   "devDependencies": {

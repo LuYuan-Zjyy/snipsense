@@ -16,6 +16,7 @@ import { CardViewProvider } from './vscode/cardView';
 import { ExplainerController } from './vscode/controller';
 import { getApiKey, readSettings, saveApiKey } from './vscode/config';
 import { StaticDefinitionProvider } from './vscode/navigation';
+import { RepoMapPanel } from './vscode/repoMapPanel';
 
 interface ProviderItem extends vscode.QuickPickItem {
   id: ProviderId;
@@ -27,16 +28,21 @@ export function activate(context: vscode.ExtensionContext): void {
   const card = new CardViewProvider(context.extensionUri, version);
   const controller = new ExplainerController(context, card, output);
   const navigation = new StaticDefinitionProvider(output);
+  const repoMap = new RepoMapPanel(context, context.extensionUri, output);
 
   context.subscriptions.push(
     output,
     controller,
+    repoMap,
     vscode.languages.registerDefinitionProvider({ scheme: 'file' }, navigation),
     vscode.window.registerWebviewViewProvider('snipsense.card', card, {
       webviewOptions: { retainContextWhenHidden: true },
     }),
     vscode.commands.registerCommand('snipsense.explainSelection', () => controller.explain()),
     vscode.commands.registerCommand('snipsense.openCard', () => void card.reveal()),
+    vscode.commands.registerCommand('snipsense.openRepoMap', () =>
+      repoMap.show(vscode.window.activeTextEditor?.document.uri),
+    ),
     vscode.commands.registerCommand('snipsense.goToDefinition', () => goToDefinition(navigation)),
     vscode.commands.registerCommand('snipsense.setup', () => configureModel(context, controller)),
     vscode.commands.registerCommand('snipsense.testConnection', () =>

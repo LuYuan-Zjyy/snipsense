@@ -16,6 +16,7 @@ exports.run = async function run() {
   for (const command of [
     'snipsense.explainSelection',
     'snipsense.openCard',
+    'snipsense.openRepoMap',
     'snipsense.goToDefinition',
     'snipsense.setup',
     'snipsense.testConnection',
@@ -160,6 +161,11 @@ exports.run = async function run() {
       /layer\.py$/,
       'PPEmb should jump to layer.py',
     );
+
+    // The map panel scans the fixture workspace and renders its webview.
+    await vscode.commands.executeCommand('snipsense.openRepoMap');
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    console.log('[SnipSense integration] repo map opened');
   } finally {
     await config.update('provider', 'deepseek', vscode.ConfigurationTarget.Global);
     await config.update('apiBase', '', vscode.ConfigurationTarget.Global);
