@@ -1,0 +1,50 @@
+name: Bug report
+description: Something does not work as expected
+title: '[bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do **not** include API keys or private source code. Redact both.
+  - type: input
+    id: version
+    attributes:
+      label: SnipSense version
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: editor
+    attributes:
+      label: Editor and version
+      placeholder: Cursor 3.x / VS Code 1.118
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and model
+      placeholder: DeepSeek / deepseek-chat, Ollama / qwen2.5-coder:7b, ...
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Select ...
+        2. Wait ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: SnipSense output log
+      description: Output panel → SnipSense. Remove keys and private code.
+      render: text

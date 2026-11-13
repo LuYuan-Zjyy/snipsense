@@ -1,0 +1,6 @@
+dist
+node_modules
+coverage
+docs/preview.html
+package-lock.json
+*.vsix

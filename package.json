@@ -1,0 +1,302 @@
+{
+  "name": "snipsense",
+  "displayName": "SnipSense · 选中即懂",
+  "description": "选中一段代码，像查字典一样读懂它。行尾一句话，侧栏一张卡，支持 DeepSeek / OpenAI / Ollama。",
+  "version": "0.1.0",
+  "publisher": "luyuan-zjyy",
+  "license": "MIT",
+  "author": {
+    "name": "LuYuan-Zjyy",
+    "url": "https://github.com/LuYuan-Zjyy"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LuYuan-Zjyy/snipsense.git"
+  },
+  "homepage": "https://github.com/LuYuan-Zjyy/snipsense#readme",
+  "bugs": {
+    "url": "https://github.com/LuYuan-Zjyy/snipsense/issues"
+  },
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Education",
+    "Other"
+  ],
+  "keywords": [
+    "cursor",
+    "vscode",
+    "ai",
+    "code explanation",
+    "code dictionary",
+    "deepseek",
+    "ollama",
+    "openai"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "在未受信任的工作区中，自动解释会暂停；只有你手动执行解释命令时才会把选中代码发送到你配置的模型。"
+    },
+    "virtualWorkspaces": {
+      "supported": true
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "snipsense.explainSelection",
+        "title": "解释选中代码",
+        "category": "SnipSense",
+        "icon": "$(lightbulb)"
+      },
+      {
+        "command": "snipsense.openCard",
+        "title": "打开代码词典",
+        "category": "SnipSense",
+        "icon": "$(book)"
+      },
+      {
+        "command": "snipsense.setup",
+        "title": "设置模型与 API Key",
+        "category": "SnipSense",
+        "icon": "$(key)"
+      },
+      {
+        "command": "snipsense.testConnection",
+        "title": "测试模型连接",
+        "category": "SnipSense",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "snipsense.toggleAuto",
+        "title": "切换自动解释",
+        "category": "SnipSense",
+        "icon": "$(zap)"
+      },
+      {
+        "command": "snipsense.clearCache",
+        "title": "清除解释缓存",
+        "category": "SnipSense",
+        "icon": "$(trash)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "snipsense.explainSelection",
+        "key": "alt+q",
+        "mac": "alt+q",
+        "when": "editorTextFocus && editorHasSelection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "snipsense.explainSelection",
+          "when": "editorHasSelection",
+          "group": "navigation@9"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "snipsense.explainSelection",
+          "when": "editorHasSelection"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "snipsense.setup",
+          "when": "view == snipsense.card",
+          "group": "navigation@1"
+        },
+        {
+          "command": "snipsense.clearCache",
+          "when": "view == snipsense.card",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "snipsense",
+          "title": "SnipSense",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "snipsense": [
+        {
+          "type": "webview",
+          "id": "snipsense.card",
+          "name": "代码词典",
+          "icon": "media/activity.svg",
+          "contextualTitle": "SnipSense"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "SnipSense",
+      "properties": {
+        "snipsense.provider": {
+          "type": "string",
+          "enum": [
+            "deepseek",
+            "openai",
+            "siliconflow",
+            "ollama",
+            "custom"
+          ],
+          "enumDescriptions": [
+            "DeepSeek 官方 API（推荐，中文解释自然）",
+            "OpenAI 官方 API",
+            "硅基流动 SiliconFlow",
+            "本地 Ollama（无需 API Key）",
+            "任意 OpenAI 兼容接口"
+          ],
+          "default": "deepseek",
+          "scope": "application",
+          "markdownDescription": "解释代码所使用的模型服务。更改后请重新解释。"
+        },
+        "snipsense.model": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "markdownDescription": "模型名称。留空则使用所选服务的预设模型。例如 `deepseek-chat`、`gpt-4o-mini`、`qwen2.5-coder:7b`。"
+        },
+        "snipsense.apiBase": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "markdownDescription": "OpenAI 兼容接口地址。留空则使用预设。可以填写 `https://api.example.com/v1`，也可以直接填写完整的 `/chat/completions` 地址。"
+        },
+        "snipsense.outputLanguage": {
+          "type": "string",
+          "enum": [
+            "zh-CN",
+            "en"
+          ],
+          "enumDescriptions": [
+            "中文解释",
+            "English explanation"
+          ],
+          "default": "zh-CN",
+          "scope": "application",
+          "description": "模型解释使用的语言。"
+        },
+        "snipsense.explainStyle": {
+          "type": "string",
+          "enum": [
+            "concise",
+            "standard"
+          ],
+          "enumDescriptions": [
+            "更像随身词典：一句话 + 2-4 个关键点，约 120-220 字",
+            "更完整：补充数据流、边界与上下文，约 250-400 字"
+          ],
+          "default": "concise",
+          "scope": "application",
+          "description": "解释的详细程度。"
+        },
+        "snipsense.autoExplain": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "选中代码后自动解释。关闭后仍可按 Alt+Q 或右键手动解释。"
+        },
+        "snipsense.inlineGloss": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "在选区末尾显示一句话提示。点击提示或悬停可打开完整解释。"
+        },
+        "snipsense.debounceMs": {
+          "type": "number",
+          "default": 550,
+          "minimum": 200,
+          "maximum": 3000,
+          "scope": "window",
+          "description": "停止选择后等待多久自动解释（毫秒）。"
+        },
+        "snipsense.contextLines": {
+          "type": "number",
+          "default": 12,
+          "minimum": 0,
+          "maximum": 60,
+          "scope": "application",
+          "description": "随选中代码一起发送的上下文行数（选区前后各多少行）。"
+        },
+        "snipsense.maxSelectionChars": {
+          "type": "number",
+          "default": 12000,
+          "minimum": 1000,
+          "maximum": 50000,
+          "scope": "application",
+          "description": "单次解释允许发送的最大选中字符数，超出部分会从中间截断。"
+        },
+        "snipsense.maxTokens": {
+          "type": "number",
+          "default": 520,
+          "minimum": 120,
+          "maximum": 2000,
+          "scope": "application",
+          "description": "模型单次回复的最大 token 数。"
+        },
+        "snipsense.temperature": {
+          "type": "number",
+          "default": 0.2,
+          "minimum": 0,
+          "maximum": 1,
+          "scope": "application",
+          "description": "模型温度。解释代码建议保持较低值。"
+        },
+        "snipsense.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "scope": "window",
+          "description": "在状态栏显示 SnipSense。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && node esbuild.mjs --production",
+    "dev": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "node test/integration/runTest.mjs",
+    "check": "npm run format:check && npm run typecheck && npm run lint && npm run test && npm run build",
+    "package": "npm run build && vsce package --no-dependencies",
+    "preview": "npm run build && node scripts/build-preview.mjs",
+    "vscode:prepublish": "npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.0",
+    "@types/vscode": "1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^4.1.1",
+    "dompurify": "^3.4.17",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0",
+    "marked": "^18.2.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.19.0",
+    "vitest": "^5.1.0"
+  }
+}
