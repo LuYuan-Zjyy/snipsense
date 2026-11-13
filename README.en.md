@@ -84,9 +84,10 @@ Only the selected code, a configurable number of surrounding lines, the relative
 
 ```bash
 npm install
-npm run check     # format + typecheck + lint + tests + build
-npm run package   # build a .vsix
-npm run preview   # generate docs/preview.html
+npm run check            # format + typecheck + lint + tests + build
+npm run package          # build a .vsix
+npm run preview          # generate docs/preview.html
+npm run test:integration # VS Code test host + local mock model, end to end
 ```
 
 Press `F5` in VS Code/Cursor to launch an Extension Development Host.

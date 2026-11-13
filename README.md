@@ -211,10 +211,11 @@ ollama serve
 
 ```bash
 npm install
-npm run check        # 格式 + 类型 + lint + 49 个单元测试 + 构建
-npm run dev          # 监听 extension + webview
-npm run package      # 生成 .vsix
-npm run preview      # 生成 docs/preview.html（截图见 docs/preview.png）
+npm run check            # 格式 + 类型 + lint + 49 个单元测试 + 构建
+npm run dev              # 监听 extension + webview
+npm run package          # 生成 .vsix
+npm run preview          # 生成 docs/preview.html（截图见 docs/preview.png）
+npm run test:integration # 启动 VS Code 测试宿主，用本地 mock 模型跑端到端流程
 ```
 
 调试：用 VS Code / Cursor 打开仓库，按 `F5` 启动 Extension Development Host。
