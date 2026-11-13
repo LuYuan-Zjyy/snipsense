@@ -84,14 +84,14 @@ Cursor 自带的 `Ctrl+L` / `Cmd+L` 很强，但它仍然是“打开一个对�
 
 ### 1. 安装
 
-从 [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases) 下载 `snipsense-0.4.0.vsix`，然后：
+从 [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases) 下载 `snipsense-0.4.1.vsix`，然后：
 
 ```bash
 # Cursor
-cursor --install-extension snipsense-0.4.0.vsix
+cursor --install-extension snipsense-0.4.1.vsix
 
 # VS Code
-code --install-extension snipsense-0.4.0.vsix
+code --install-extension snipsense-0.4.1.vsix
 ```
 
 也可以在编辑器的扩展面板里选择 **Install from VSIX**。

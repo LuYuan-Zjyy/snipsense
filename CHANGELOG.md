@@ -2,6 +2,14 @@
 
 All notable changes to SnipSense are documented here.
 
+## [0.4.1] - 2026-11-13
+
+### Fixed
+
+- The AI reading path no longer drops streamed characters when the provider sends chunks faster than the UI refresh interval. Chunks are coalesced and buffered, so every character reaches the panel exactly once.
+- An empty AI guide response is now reported as an error instead of leaving a blank panel.
+- Added an end-to-end panel-open check for the repository map.
+
 ## [0.4.0] - 2026-11-13
 
 ### Added

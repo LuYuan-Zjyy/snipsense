@@ -40,12 +40,12 @@ Cursor's built-in `Ctrl+L` is great for a deep conversation. SnipSense is for th
 
 ## Install
 
-Download `snipsense-0.4.0.vsix` from [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases), then:
+Download `snipsense-0.4.1.vsix` from [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases), then:
 
 ```bash
-cursor --install-extension snipsense-0.4.0.vsix
+cursor --install-extension snipsense-0.4.1.vsix
 # or
-code --install-extension snipsense-0.4.0.vsix
+code --install-extension snipsense-0.4.1.vsix
 ```
 
 Reload the window. Run **`SnipSense: 设置模型与 API Key`** from the Command Palette and pick a provider.

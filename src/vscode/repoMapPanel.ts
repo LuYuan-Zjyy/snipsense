@@ -161,6 +161,7 @@ export class RepoMapPanel implements vscode.Disposable {
       const endpoint = normalizeEndpoint(resolveApiBase(settings));
       const model = resolveModel(settings);
       let text = '';
+      let pending = '';
       let lastEmit = 0;
 
       for await (const chunk of streamChat(
@@ -177,14 +178,21 @@ export class RepoMapPanel implements vscode.Disposable {
         { signal: abort.signal },
       )) {
         text += chunk;
+        pending += chunk;
         const now = Date.now();
         if (now - lastEmit > 60) {
           lastEmit = now;
-          // Send only the new chunk; the webview appends it to its buffer.
-          this.post({ type: 'guideChunk', chunk });
+          // Coalesce chunks so the webview receives every character exactly
+          // once, even when the provider sends faster than the repaint rate.
+          this.post({ type: 'guideChunk', chunk: pending });
+          pending = '';
         }
       }
 
+      if (!text.trim()) {
+        throw new LlmError('模型没有返回导读内容，请重试或换一个模型。');
+      }
+      if (pending) this.post({ type: 'guideChunk', chunk: pending });
       this.post({ type: 'guideDone' });
       this.output.appendLine(`[map] guide generated (${text.length} chars) via ${model}`);
     } catch (error) {
