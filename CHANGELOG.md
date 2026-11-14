@@ -2,6 +2,30 @@
 
 All notable changes to SnipSense are documented here.
 
+## [0.5.0] - 2026-11-14
+
+### Added
+
+- The workflow panel is now three layers: **repo map / call chain / runtime trace**.
+- Static function-level call graph for Python, TypeScript and JavaScript:
+  - parses functions, classes, methods, constructors and imports;
+  - resolves `self.ppe = PPEmb(...)` attribute types, so `ViT.__init__ -> PPEmb.__init__` and `ViT.forward -> PPEmb.forward` are connected;
+  - renders a clickable call tree with cycle detection;
+  - roots from entry functions or the active file.
+- Chrome trace import for **VizTracer** and **PyTorch Profiler**:
+  - supports `X` complete events and `B/E` begin/end events;
+  - extracts source locations embedded in VizTracer names (`fib (/path/file.py:6)`);
+  - renders real nesting, timeline offsets, durations and slowest calls;
+  - click a frame to open `file:line`.
+- Commands `SnipSense: 打开调用链` and `SnipSense: 导入运行轨迹（trace.json）`.
+- Screenshots `docs/callgraph.png` and `docs/trace.png`.
+
+### Notes
+
+- The call chain is a static approximation. It does not execute code and cannot know runtime branches.
+- The runtime trace is exact for the run that produced it, but only covers that run. Imported traces stay local.
+- 7 new unit tests for call graph and trace parsing; 87 total.
+
 ## [0.4.1] - 2026-11-13
 
 ### Fixed

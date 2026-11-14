@@ -41,8 +41,12 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('snipsense.explainSelection', () => controller.explain()),
     vscode.commands.registerCommand('snipsense.openCard', () => void card.reveal()),
     vscode.commands.registerCommand('snipsense.openRepoMap', () =>
-      repoMap.show(vscode.window.activeTextEditor?.document.uri),
+      repoMap.show(vscode.window.activeTextEditor?.document.uri, 'map'),
     ),
+    vscode.commands.registerCommand('snipsense.openCallGraph', () =>
+      repoMap.show(vscode.window.activeTextEditor?.document.uri, 'call'),
+    ),
+    vscode.commands.registerCommand('snipsense.importTrace', () => repoMap.importTraceFile()),
     vscode.commands.registerCommand('snipsense.goToDefinition', () => goToDefinition(navigation)),
     vscode.commands.registerCommand('snipsense.setup', () => configureModel(context, controller)),
     vscode.commands.registerCommand('snipsense.testConnection', () =>

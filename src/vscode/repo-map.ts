@@ -38,6 +38,7 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
 
 export interface RepoScanResult {
   map: RepoMap;
+  sources: RepoSourceFile[];
   rootUri: vscode.Uri;
 }
 
@@ -99,7 +100,7 @@ export async function scanWorkspaceRepoMap(
     truncated: truncated || skipped > 0,
   });
 
-  return { map, rootUri: folder.uri };
+  return { map, sources, rootUri: folder.uri };
 }
 
 function shouldRead(uri: vscode.Uri): boolean {

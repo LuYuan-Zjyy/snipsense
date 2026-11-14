@@ -1,8 +1,8 @@
 {
   "name": "snipsense",
   "displayName": "SnipSense · 选中即懂",
-  "description": "从一段代码读到整个仓库：选中即解释、跨文件依赖、Ctrl+点击跳转和可交互仓库地图。支持 DeepSeek / OpenAI / Ollama。",
-  "version": "0.4.1",
+  "description": "从一段代码读到整个仓库：选中解释、仓库地图、静态调用链、真实运行 trace 和 Ctrl+点击跳转。支持 DeepSeek / OpenAI / Ollama。",
+  "version": "0.5.0",
   "publisher": "luyuan-zjyy",
   "license": "MIT",
   "author": {
@@ -75,9 +75,21 @@
       },
       {
         "command": "snipsense.openRepoMap",
-        "title": "打开仓库地图",
+        "title": "打开代码工作流",
         "category": "SnipSense",
         "icon": "$(map)"
+      },
+      {
+        "command": "snipsense.openCallGraph",
+        "title": "打开调用链",
+        "category": "SnipSense",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "snipsense.importTrace",
+        "title": "导入运行轨迹（trace.json）",
+        "category": "SnipSense",
+        "icon": "$(pulse)"
       },
       {
         "command": "snipsense.setup",

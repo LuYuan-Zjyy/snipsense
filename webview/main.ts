@@ -33,7 +33,7 @@ app.innerHTML = `
       </div>
       <div class="top-actions">
         <button id="pinButton" class="icon-btn" type="button" data-action="pin" title="固定这次解释" aria-label="固定这次解释" aria-pressed="false">${icons.pin}</button>
-        <button class="icon-btn" type="button" data-action="repoMap" title="仓库地图" aria-label="仓库地图">${icons.map}</button>
+        <button class="icon-btn" type="button" data-action="repoMap" title="代码工作流：仓库地图 / 调用链 / 运行轨迹" aria-label="代码工作流">${icons.map}</button>
         <button class="icon-btn" type="button" data-action="setup" title="设置模型" aria-label="设置模型">${icons.settings}</button>
       </div>
     </header>
@@ -635,6 +635,6 @@ function defaultState(): CardState {
     graph: null,
     multiFile: true,
     untrusted: false,
-    version: '0.4.1',
+    version: '0.5.0',
   };
 }

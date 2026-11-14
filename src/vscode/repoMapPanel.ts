@@ -1,10 +1,14 @@
 import * as vscode from 'vscode';
 import { LlmError, streamChat } from '../core/client';
 import { PROVIDERS, normalizeEndpoint, resolveApiBase, resolveModel } from '../core/endpoint';
+import { buildCallGraph, type CallGraph } from '../core/call-graph';
 import { buildRepoGuideMessages, buildRepoMapSummary } from '../core/repo-map';
 import { isAbortError } from '../core/text';
+import { parseChromeTrace, type TraceModel } from '../core/trace';
 import { getApiKey, readSettings } from './config';
 import { scanWorkspaceRepoMap, type RepoScanResult } from './repo-map';
+
+type PanelTab = 'map' | 'call' | 'trace';
 
 type PanelMessage =
   | { type: 'ready' }
@@ -13,12 +17,20 @@ type PanelMessage =
   | { type: 'guide' }
   | { type: 'setup' }
   | { type: 'focus' }
-  | { type: 'openFile'; path?: unknown };
+  | { type: 'tab'; tab?: unknown }
+  | { type: 'buildCallGraph' }
+  | { type: 'importTrace' }
+  | { type: 'openFile'; path?: unknown; line?: unknown };
 
 export class RepoMapPanel implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
   private scan: RepoScanResult | undefined;
   private scanError = '';
+  private activeTab: PanelTab = 'map';
+  private callGraph: CallGraph | undefined;
+  private trace: TraceModel | undefined;
+  private callLoading = false;
+  private traceLoading = false;
   private abort: AbortController | undefined;
   private scanGeneration = 0;
   private disposed = false;
@@ -29,18 +41,22 @@ export class RepoMapPanel implements vscode.Disposable {
     private readonly output: vscode.OutputChannel,
   ) {}
 
-  async show(focusUri?: vscode.Uri): Promise<void> {
+  async show(focusUri?: vscode.Uri, tab: PanelTab = 'map'): Promise<void> {
     if (this.disposed) return;
+    this.activeTab = tab;
 
     if (this.panel) {
       this.panel.reveal(undefined, true);
+      this.post({ type: 'tab', tab: this.activeTab });
+      if (tab === 'trace') return;
       await this.scanWorkspace(focusUri);
+      if (tab === 'call') await this.ensureCallGraph();
       return;
     }
 
     const panel = vscode.window.createWebviewPanel(
       'snipsense.repoMap',
-      'SnipSense · 仓库地图',
+      'SnipSense · 代码工作流',
       vscode.ViewColumn.Active,
       {
         enableScripts: true,
@@ -61,6 +77,12 @@ export class RepoMapPanel implements vscode.Disposable {
     });
 
     await this.scanWorkspace(focusUri);
+    if (tab === 'call') await this.ensureCallGraph();
+  }
+
+  async importTraceFile(): Promise<void> {
+    await this.show(undefined, 'trace');
+    await this.importTrace();
   }
 
   dispose(): void {
@@ -73,15 +95,35 @@ export class RepoMapPanel implements vscode.Disposable {
   private onMessage(message: PanelMessage): void {
     switch (message.type) {
       case 'ready':
+        this.post({ type: 'tab', tab: this.activeTab });
+        if (this.callGraph) this.post({ type: 'callGraph', graph: this.callGraph });
+        if (this.trace) this.post({ type: 'trace', model: this.trace });
         if (this.scanError) this.post({ type: 'error', message: this.scanError });
         else if (this.scan) this.post({ type: 'map', map: this.scan.map });
         else this.post({ type: 'scanning' });
         break;
+      case 'tab':
+        if (message.tab === 'map' || message.tab === 'call' || message.tab === 'trace') {
+          this.activeTab = message.tab;
+          this.post({ type: 'tab', tab: this.activeTab });
+          if (this.activeTab === 'call') void this.ensureCallGraph();
+        }
+        break;
+      case 'buildCallGraph':
+        void this.ensureCallGraph(true);
+        break;
+      case 'importTrace':
+        void this.importTrace();
+        break;
       case 'refresh':
-        void this.scanWorkspace(vscode.window.activeTextEditor?.document.uri);
+        void this.scanWorkspace(vscode.window.activeTextEditor?.document.uri).then(() => {
+          if (this.activeTab === 'call') void this.ensureCallGraph(true);
+        });
         break;
       case 'focus':
-        void this.scanWorkspace(vscode.window.activeTextEditor?.document.uri);
+        void this.scanWorkspace(vscode.window.activeTextEditor?.document.uri).then(() => {
+          if (this.activeTab === 'call') void this.ensureCallGraph(true);
+        });
         break;
       case 'copy':
         void this.copyMap();
@@ -93,7 +135,10 @@ export class RepoMapPanel implements vscode.Disposable {
         void vscode.commands.executeCommand('snipsense.setup');
         break;
       case 'openFile':
-        if (typeof message.path === 'string') void this.openFile(message.path);
+        if (typeof message.path === 'string') {
+          const line = typeof message.line === 'number' ? message.line : undefined;
+          void this.openFile(message.path, line);
+        }
         break;
       default:
         break;
@@ -126,6 +171,7 @@ export class RepoMapPanel implements vscode.Disposable {
       }
 
       this.scan = result;
+      this.callGraph = undefined;
       this.post({ type: 'map', map: result.map });
       this.output.appendLine(
         `[map] ${result.map.scannedFiles} files, ${result.map.edges.length} edges`,
@@ -136,6 +182,63 @@ export class RepoMapPanel implements vscode.Disposable {
       this.scanError = message;
       this.output.appendLine(`[map] scan failed: ${message}`);
       this.post({ type: 'error', message });
+    }
+  }
+
+  private async ensureCallGraph(force = false): Promise<void> {
+    if (!this.scan || !this.panel || this.callLoading) return;
+    if (this.callGraph && !force) {
+      this.post({ type: 'callGraph', graph: this.callGraph });
+      return;
+    }
+
+    this.callLoading = true;
+    this.post({ type: 'callLoading' });
+    try {
+      const graph = buildCallGraph(this.scan.sources, this.scan.map.focus);
+      this.callGraph = graph;
+      this.post({ type: 'callGraph', graph });
+      this.output.appendLine(`[call] ${graph.nodes.length} nodes, ${graph.edges.length} edges`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.output.appendLine(`[call] failed: ${message}`);
+      this.post({ type: 'callError', message });
+    } finally {
+      this.callLoading = false;
+    }
+  }
+
+  private async importTrace(): Promise<void> {
+    if (!this.panel || this.traceLoading) return;
+    const picked = await vscode.window.showOpenDialog({
+      canSelectMany: false,
+      openLabel: '导入运行轨迹',
+      filters: { 'Trace JSON': ['json'] },
+    });
+    if (!picked?.[0]) return;
+
+    this.traceLoading = true;
+    this.activeTab = 'trace';
+    this.post({ type: 'tab', tab: 'trace' });
+    this.post({ type: 'traceLoading' });
+    try {
+      const bytes = await vscode.workspace.fs.readFile(picked[0]);
+      const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+      const parsed = parseChromeTrace(
+        JSON.parse(text) as unknown,
+        picked[0].path.split('/').pop() ?? 'trace.json',
+      );
+      this.trace = parsed;
+      this.post({ type: 'trace', model: parsed });
+      this.output.appendLine(
+        `[trace] ${parsed.totalEvents} events, ${parsed.durationMs.toFixed(1)}ms`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.output.appendLine(`[trace] failed: ${message}`);
+      this.post({ type: 'traceError', message });
+    } finally {
+      this.traceLoading = false;
     }
   }
 
@@ -212,13 +315,30 @@ export class RepoMapPanel implements vscode.Disposable {
     this.post({ type: 'copied' });
   }
 
-  private async openFile(path: string): Promise<void> {
-    if (!this.scan) return;
-    const uri = vscode.Uri.joinPath(this.scan.rootUri, path);
-    if (!isInside(this.scan.rootUri, uri)) return;
+  private async openFile(path: string, line?: number): Promise<void> {
+    let uri: vscode.Uri;
+    if (this.scan && !isAbsolutePath(path)) {
+      uri = vscode.Uri.joinPath(this.scan.rootUri, path);
+      if (!isInside(this.scan.rootUri, uri)) return;
+    } else {
+      uri = vscode.Uri.file(path);
+    }
+
     try {
       const document = await vscode.workspace.openTextDocument(uri);
-      await vscode.window.showTextDocument(document, { preview: false });
+      const selection =
+        line && Number.isFinite(line)
+          ? new vscode.Range(
+              Math.max(0, Math.floor(line) - 1),
+              0,
+              Math.max(0, Math.floor(line) - 1),
+              0,
+            )
+          : undefined;
+      await vscode.window.showTextDocument(document, {
+        preview: false,
+        selection,
+      });
     } catch {
       // File may have moved since the map was generated.
     }
@@ -245,7 +365,7 @@ export class RepoMapPanel implements vscode.Disposable {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; font-src ${webview.cspSource};" />
   <link rel="stylesheet" href="${styleUri}" />
-  <title>SnipSense 仓库地图</title>
+  <title>SnipSense 代码工作流</title>
 </head>
 <body>
   <div id="app"></div>
@@ -257,6 +377,10 @@ export class RepoMapPanel implements vscode.Disposable {
 
 function isInside(root: vscode.Uri, candidate: vscode.Uri): boolean {
   return candidate.path === root.path || candidate.path.startsWith(`${root.path}/`);
+}
+
+function isAbsolutePath(path: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(path) || path.startsWith('/') || path.startsWith('\\\\');
 }
 
 function getNonce(): string {

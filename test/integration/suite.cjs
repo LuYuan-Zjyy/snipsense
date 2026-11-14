@@ -17,6 +17,8 @@ exports.run = async function run() {
     'snipsense.explainSelection',
     'snipsense.openCard',
     'snipsense.openRepoMap',
+    'snipsense.openCallGraph',
+    'snipsense.importTrace',
     'snipsense.goToDefinition',
     'snipsense.setup',
     'snipsense.testConnection',
@@ -165,7 +167,9 @@ exports.run = async function run() {
     // The map panel scans the fixture workspace and renders its webview.
     await vscode.commands.executeCommand('snipsense.openRepoMap');
     await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log('[SnipSense integration] repo map opened');
+    await vscode.commands.executeCommand('snipsense.openCallGraph');
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    console.log('[SnipSense integration] repo map and call graph opened');
   } finally {
     await config.update('provider', 'deepseek', vscode.ConfigurationTarget.Global);
     await config.update('apiBase', '', vscode.ConfigurationTarget.Global);

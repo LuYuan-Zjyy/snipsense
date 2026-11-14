@@ -31,6 +31,8 @@ Cursor's built-in `Ctrl+L` is great for a deep conversation. SnipSense is for th
 - Cross-file dependency analysis: imports/exports, definition excerpts and reference call sites.
 - Token-free Ctrl+click / F12 fallback for functions, classes, imports and aliases.
 - Repo map: local dependency scan, PageRank key files, entry points, clickable graph.
+- Static call chain: functions/methods, imports, constructors, `self.attr.method()` inference.
+- Runtime trace: import VizTracer / PyTorch Chrome trace, real call tree, timeline and slowest calls.
 - Optional AI reading path grounded in the map; sends paths/symbols/edges, not full source.
 - Usage-aware prompt: real arguments, return values, ordering and side effects where evidence exists.
 - Follow-up chips: simpler, example, why written this way.
@@ -40,12 +42,12 @@ Cursor's built-in `Ctrl+L` is great for a deep conversation. SnipSense is for th
 
 ## Install
 
-Download `snipsense-0.4.1.vsix` from [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases), then:
+Download `snipsense-0.5.0.vsix` from [Releases](https://github.com/LuYuan-Zjyy/snipsense/releases), then:
 
 ```bash
-cursor --install-extension snipsense-0.4.1.vsix
+cursor --install-extension snipsense-0.5.0.vsix
 # or
-code --install-extension snipsense-0.4.1.vsix
+code --install-extension snipsense-0.5.0.vsix
 ```
 
 Reload the window. Run **`SnipSense: 设置模型与 API Key`** from the Command Palette and pick a provider.
@@ -67,16 +69,16 @@ Select **Ollama（本地）** in SnipSense and test the connection. No API key a
 4. Hover it and open the full explanation, or click the SnipSense status-bar item.
 5. Use the **Related** section to jump to a dependency or a real call site.
 6. `Ctrl+click` an imported function/class name to jump to its definition. If the language server has no answer, SnipSense provides a static fallback with no AI call. `Ctrl+Alt+J` runs the same jump from the keyboard.
-7. Press `Ctrl+Alt+M` or run **`SnipSense: 打开仓库地图`** to open the interactive repo map.
+7. Press `Ctrl+Alt+M` or run **`SnipSense: 打开代码工作流`** to open the three-layer workflow panel.
 8. Ask a follow-up at the bottom of the card.
 
 The card lives in the activity bar. For the best reading layout, drag the view to the Secondary Side Bar on the right.
 
-## Repo map
+## Three layers
+
+### 1. Repo map: structure
 
 <img src="https://raw.githubusercontent.com/LuYuan-Zjyy/snipsense/main/docs/repomap.png" alt="SnipSense repo map" width="900" />
-
-The map is generated locally and costs no tokens:
 
 - scans code files, resolves imports and builds a directed dependency graph;
 - ranks files with PageRank to surface the most important modules;
@@ -84,7 +86,30 @@ The map is generated locally and costs no tokens:
 - renders a clickable graph (node size = importance, colour = language);
 - can be copied as Markdown for onboarding docs.
 
-The optional **AI reading path** sends only paths, symbols and dependency edges — never full source — and runs only when you click it.
+### 2. Call chain: how functions connect
+
+<img src="https://raw.githubusercontent.com/LuYuan-Zjyy/snipsense/main/docs/callgraph.png" alt="SnipSense static call graph" width="900" />
+
+- starts from `train` or the first function in the active file, up to six levels;
+- parses Python / TS / JS functions, methods, imports and constructors;
+- infers `self.ppe = PPEmb(...)`, so `ViT.__init__ -> PPEmb.__init__` and `ViT.forward -> PPEmb.forward` are connected;
+- click any row to jump to `file:line`;
+- static approximation: no execution, no runtime branches.
+
+### 3. Runtime trace: what actually ran
+
+<img src="https://raw.githubusercontent.com/LuYuan-Zjyy/snipsense/main/docs/trace.png" alt="SnipSense runtime trace" width="900" />
+
+Generate a Chrome trace first, then click **导入 trace.json**:
+
+```bash
+pip install viztracer
+viztracer -o trace.json train.py
+```
+
+PyTorch Profiler `chrome_trace.json` works too. The panel shows real nesting, timeline positions, durations, slowest calls, and clickable source frames.
+
+The optional **AI reading path** sends only paths, symbols and dependency edges — never full source — and runs only when you click it. Imported traces stay local.
 
 ## Compared with existing tools
 
@@ -97,6 +122,8 @@ The optional **AI reading path** sends only paths, symbols and dependency edges 
 | Cross-file deps / call sites   | Depends on chat   | Depends on chat | No         | **Yes**   |
 | Token-free Ctrl+click fallback | Built-in          | Built-in        | No         | **Yes**   |
 | Interactive repo map           | No                | No              | No         | **Yes**   |
+| Static call chain              | No                | No              | No         | **Yes**   |
+| Runtime trace import           | No                | No              | No         | **Yes**   |
 | DeepSeek                       | Depends on Cursor | No              | No         | **Yes**   |
 | Local Ollama                   | Depends on Cursor | No              | No         | **Yes**   |
 | Open source                    | No                | No              | MIT        | **MIT**   |
@@ -107,13 +134,13 @@ There are close alternatives — [CodeGlance](https://github.com/haarshitgarg/Co
 
 By default, SnipSense sends the selected code, a configurable number of surrounding lines, the relative file name, language and line numbers. With multi-file enabled, it also sends a bounded set of definition excerpts from imports actually used by the selection (up to `maxRelatedFiles`) and up to `maxUsages` real reference sites. It never indexes the whole project or `node_modules`, and there is no telemetry or account. Keys are stored in `SecretStorage`; the explanation cache stores the explanation, small graph metadata (including call-site lines) and an irreversible hash. Auto-explain is paused in untrusted workspaces.
 
-The repo map is built locally and makes no AI request. The optional AI reading path sends only the map summary (paths, symbols, edges), not full source.
+The repo map and static call chain are built locally and make no AI request. Imported traces are parsed in memory and never uploaded. The optional AI reading path sends only the map summary (paths, symbols, edges), not full source.
 
 ## Development
 
 ```bash
 npm install
-npm run check            # format + typecheck + lint + 80 tests + build
+npm run check            # format + typecheck + lint + 87 tests + build
 npm run package          # build a .vsix
 npm run preview          # generate docs/preview.html
 npm run preview:map      # generate docs/repo-map-preview.html
@@ -125,6 +152,8 @@ Press `F5` in VS Code/Cursor to launch an Extension Development Host.
 ## Design notes
 
 The repo map is inspired by [Aider](https://github.com/Aider-AI/aider)'s repo map (tree-sitter + graph ranking), but reimplemented in TypeScript around the existing import graph so the extension needs no Python, tree-sitter runtime, Docker or graph database. [Repomix](https://github.com/yamadashy/repomix) and [code-graph-rag](https://github.com/vitali87/code-graph-rag) were also evaluated; they are excellent at packaging or graph RAG, but heavier than a personal editor plugin needs.
+
+The call-chain UI is inspired by [Code Graph View](https://github.com/otobongfp/code-graph-view) (MIT). Runtime traces come from [VizTracer](https://github.com/gaogaotiantian/viztracer) or PyTorch Profiler; SnipSense only parses the Chrome trace and never bundles a tracer. [AppMap](https://github.com/getappmap/vscode-appland) is the next planned importer.
 
 ## License
 

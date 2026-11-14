@@ -64,6 +64,244 @@ const mock = {
   generatedAt: '2026-11-13T15:00:00.000Z',
 };
 
+const callGraph = {
+  nodes: [
+    {
+      id: 'vit.py#train',
+      name: 'train',
+      qualifiedName: 'train',
+      file: 'vit.py',
+      language: 'python',
+      line: 12,
+      character: 0,
+      kind: 'function',
+    },
+    {
+      id: 'vit.py#ViT.__init__',
+      name: '__init__',
+      qualifiedName: 'ViT.__init__',
+      file: 'vit.py',
+      language: 'python',
+      line: 4,
+      character: 4,
+      className: 'ViT',
+      kind: 'method',
+    },
+    {
+      id: 'vit.py#ViT.forward',
+      name: 'forward',
+      qualifiedName: 'ViT.forward',
+      file: 'vit.py',
+      language: 'python',
+      line: 8,
+      character: 4,
+      className: 'ViT',
+      kind: 'method',
+    },
+    {
+      id: 'layer.py#PPEmb.__init__',
+      name: '__init__',
+      qualifiedName: 'PPEmb.__init__',
+      file: 'layer.py',
+      language: 'python',
+      line: 4,
+      character: 4,
+      className: 'PPEmb',
+      kind: 'method',
+    },
+    {
+      id: 'layer.py#PPEmb.forward',
+      name: 'forward',
+      qualifiedName: 'PPEmb.forward',
+      file: 'layer.py',
+      language: 'python',
+      line: 8,
+      character: 4,
+      className: 'PPEmb',
+      kind: 'method',
+    },
+    {
+      id: 'layer.py#Block.__init__',
+      name: '__init__',
+      qualifiedName: 'Block.__init__',
+      file: 'layer.py',
+      language: 'python',
+      line: 12,
+      character: 4,
+      className: 'Block',
+      kind: 'method',
+    },
+    {
+      id: 'layer.py#Block.forward',
+      name: 'forward',
+      qualifiedName: 'Block.forward',
+      file: 'layer.py',
+      language: 'python',
+      line: 16,
+      character: 4,
+      className: 'Block',
+      kind: 'method',
+    },
+    {
+      id: 'layer.py#PPEmb',
+      name: 'PPEmb',
+      qualifiedName: 'PPEmb',
+      file: 'layer.py',
+      language: 'python',
+      line: 3,
+      character: 0,
+      kind: 'class',
+    },
+  ],
+  edges: [
+    { from: 'vit.py#train', to: 'vit.py#ViT.__init__', line: 13 },
+    { from: 'vit.py#train', to: 'vit.py#ViT.forward', line: 14 },
+    { from: 'vit.py#ViT.__init__', to: 'layer.py#PPEmb.__init__', line: 5 },
+    { from: 'vit.py#ViT.__init__', to: 'layer.py#Block.__init__', line: 6 },
+    { from: 'vit.py#ViT.forward', to: 'layer.py#PPEmb.forward', line: 9 },
+    { from: 'vit.py#ViT.forward', to: 'layer.py#Block.forward', line: 10 },
+    { from: 'layer.py#Block.__init__', to: 'layer.py#PPEmb.__init__', line: 13 },
+  ],
+  roots: ['vit.py#train'],
+  focus: 'vit.py#train',
+  truncated: false,
+};
+
+const trace = {
+  fileName: 'trace.json',
+  totalEvents: 38,
+  durationMs: 420,
+  threads: ['1:1'],
+  truncated: false,
+  roots: [
+    {
+      id: 1,
+      name: 'train',
+      file: 'train.py',
+      line: 10,
+      startMs: 0,
+      durationMs: 420,
+      depth: 0,
+      children: [
+        {
+          id: 2,
+          name: 'build_model',
+          file: 'vit.py',
+          line: 12,
+          startMs: 8,
+          durationMs: 68,
+          depth: 1,
+          children: [
+            {
+              id: 3,
+              name: 'ViT.__init__',
+              file: 'vit.py',
+              line: 4,
+              startMs: 12,
+              durationMs: 44,
+              depth: 2,
+              children: [],
+            },
+            {
+              id: 4,
+              name: 'PPEmb.__init__',
+              file: 'layer.py',
+              line: 4,
+              startMs: 34,
+              durationMs: 18,
+              depth: 2,
+              children: [],
+            },
+          ],
+        },
+        {
+          id: 5,
+          name: 'train_one_epoch',
+          file: 'train.py',
+          line: 28,
+          startMs: 82,
+          durationMs: 286,
+          depth: 1,
+          children: [
+            {
+              id: 6,
+              name: 'ViT.forward',
+              file: 'vit.py',
+              line: 8,
+              startMs: 96,
+              durationMs: 82,
+              depth: 2,
+              children: [],
+            },
+            {
+              id: 7,
+              name: 'PPEmb.forward',
+              file: 'layer.py',
+              line: 8,
+              startMs: 122,
+              durationMs: 38,
+              depth: 3,
+              children: [],
+            },
+            {
+              id: 8,
+              name: 'loss.backward',
+              file: 'train.py',
+              line: 36,
+              startMs: 188,
+              durationMs: 144,
+              depth: 2,
+              children: [],
+            },
+          ],
+        },
+        {
+          id: 9,
+          name: 'save_checkpoint',
+          file: 'train.py',
+          line: 42,
+          startMs: 380,
+          durationMs: 30,
+          depth: 1,
+          children: [],
+        },
+      ],
+    },
+  ],
+  slowest: [
+    {
+      id: 1,
+      name: 'train',
+      file: 'train.py',
+      line: 10,
+      startMs: 0,
+      durationMs: 420,
+      depth: 0,
+      children: [],
+    },
+    {
+      id: 5,
+      name: 'train_one_epoch',
+      file: 'train.py',
+      line: 28,
+      startMs: 82,
+      durationMs: 286,
+      depth: 1,
+      children: [],
+    },
+    {
+      id: 8,
+      name: 'loss.backward',
+      file: 'train.py',
+      line: 36,
+      startMs: 188,
+      durationMs: 144,
+      depth: 2,
+      children: [],
+    },
+  ],
+};
+
 const guide = `# 这个仓库在做什么
 
 一个最小可跑的 ViT 实验仓：TypeScript 和 Python 各有一份模型实现，训练入口分别从 \`src/index.ts\` 和 \`py/train.py\` 开始。
@@ -155,8 +393,21 @@ const html = `<!DOCTYPE html>
   <script>
     const map = ${JSON.stringify(mock)};
     const guide = ${JSON.stringify(guide)};
+    const callGraph = ${JSON.stringify(callGraph)};
+    const trace = ${JSON.stringify(trace)};
+    const tab = new URLSearchParams(location.search).get('tab') || 'map';
     setTimeout(() => {
       window.postMessage({ type: 'map', map }, '*');
+      if (tab === 'call') {
+        window.postMessage({ type: 'tab', tab: 'call' }, '*');
+        window.postMessage({ type: 'callGraph', graph: callGraph }, '*');
+        return;
+      }
+      if (tab === 'trace') {
+        window.postMessage({ type: 'tab', tab: 'trace' }, '*');
+        window.postMessage({ type: 'trace', model: trace }, '*');
+        return;
+      }
       window.postMessage({ type: 'guideStart' }, '*');
       const step = Math.ceil(guide.length / 18);
       for (let i = 0; i < guide.length; i += step) {

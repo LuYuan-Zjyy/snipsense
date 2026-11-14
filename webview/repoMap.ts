@@ -1,6 +1,8 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import type { CallGraph, CallNode } from '../src/core/call-graph';
 import type { RepoMap, RepoMapFile } from '../src/core/repo-map';
+import type { TraceModel, TraceNode } from '../src/core/trace';
 import './repoMap.css';
 import { icons } from './mapIcons';
 
@@ -23,6 +25,14 @@ let guideStatus: 'idle' | 'streaming' | 'done' | 'error' = 'idle';
 let guideError = '';
 let guideNeedsSetup = false;
 let graphKey = '';
+let activeTab: 'map' | 'call' | 'trace' = 'map';
+let callGraph: CallGraph | null = null;
+let callLoading = false;
+let callError = '';
+let callRoot = '';
+let trace: TraceModel | null = null;
+let traceLoading = false;
+let traceError = '';
 
 marked.setOptions({ gfm: true, breaks: true });
 
@@ -32,7 +42,7 @@ app.innerHTML = `
       <div class="rm-brand">
         <span class="rm-logo">${icons.map}</span>
         <div class="rm-brand-copy">
-          <div class="rm-title">SnipSense <span>仓库地图</span></div>
+          <div class="rm-title">SnipSense <span id="viewTitle">仓库地图</span></div>
           <div class="rm-root" id="root">读取仓库中…</div>
         </div>
       </div>
@@ -43,7 +53,12 @@ app.innerHTML = `
       </div>
     </header>
     <div class="rm-summary" id="summary"></div>
-    <main class="rm-layout">
+    <nav class="rm-tabs" aria-label="工作流层级">
+      <button type="button" class="rm-tab active" data-tab="map">${icons.map}<span>仓库地图</span><small>结构</small></button>
+      <button type="button" class="rm-tab" data-tab="call">${icons.call}<span>调用链</span><small>静态</small></button>
+      <button type="button" class="rm-tab" data-tab="trace">${icons.trace}<span>运行轨迹</span><small>真实</small></button>
+    </nav>
+    <main class="rm-layout rm-view active" id="view-map">
       <aside class="rm-side">
         <div class="rm-panel-head">
           <span>阅读路线</span>
@@ -66,6 +81,31 @@ app.innerHTML = `
         <div class="rm-guide-body" id="guideBody"></div>
       </aside>
     </main>
+    <section class="rm-view rm-call-view" id="view-call">
+      <div class="rm-view-head">
+        <div>
+          <h2>静态调用链</h2>
+          <p>从入口或当前函数出发，沿着真实定义解析跨文件调用。它回答“可能调用谁”，不包含运行时分支。</p>
+        </div>
+        <div class="rm-view-actions">
+          <select id="callRoot" class="rm-select" aria-label="选择调用链根节点"></select>
+          <button class="rm-btn" type="button" data-action="buildCall">${icons.refresh}<span>重新构建</span></button>
+        </div>
+      </div>
+      <div class="rm-call-body" id="callBody"></div>
+    </section>
+    <section class="rm-view rm-trace-view" id="view-trace">
+      <div class="rm-view-head">
+        <div>
+          <h2>真实运行轨迹</h2>
+          <p>导入 VizTracer 或 PyTorch Profiler 生成的 Chrome trace。显示实际调用、嵌套关系和耗时。</p>
+        </div>
+        <div class="rm-view-actions">
+          <button class="rm-btn rm-primary" type="button" data-action="importTrace">${icons.trace}<span>导入 trace.json</span></button>
+        </div>
+      </div>
+      <div class="rm-trace-body" id="traceBody"></div>
+    </section>
   </div>
 `;
 
@@ -77,12 +117,28 @@ const legendEl = document.getElementById('legend') as HTMLElement;
 const guideBodyEl = document.getElementById('guideBody') as HTMLElement;
 const guideStatusEl = document.getElementById('guideStatus') as HTMLElement;
 const copyLabel = document.getElementById('copyLabel') as HTMLElement;
+const callBodyEl = document.getElementById('callBody') as HTMLElement;
+const traceBodyEl = document.getElementById('traceBody') as HTMLElement;
+const callRootEl = document.getElementById('callRoot') as HTMLSelectElement;
+const tabs = [...document.querySelectorAll<HTMLButtonElement>('.rm-tab')];
+const shellEl = document.querySelector<HTMLElement>('.rm-shell');
+const viewTitleEl = document.getElementById('viewTitle') as HTMLElement;
 
 app.addEventListener('click', (event) => {
   const target = event.target as Element;
+  const tab = target.closest<HTMLElement>('[data-tab]');
+  if (tab?.dataset.tab === 'map' || tab?.dataset.tab === 'call' || tab?.dataset.tab === 'trace') {
+    setActiveTab(tab.dataset.tab, true);
+    return;
+  }
+
   const node = target.closest<HTMLElement>('[data-path]');
   if (node?.dataset.path) {
-    post({ type: 'openFile', path: node.dataset.path });
+    post({
+      type: 'openFile',
+      path: node.dataset.path,
+      line: node.dataset.line ? Number(node.dataset.line) : undefined,
+    });
     return;
   }
 
@@ -104,9 +160,20 @@ app.addEventListener('click', (event) => {
     case 'setup':
       post({ type: 'setup' });
       break;
+    case 'buildCall':
+      post({ type: 'buildCallGraph' });
+      break;
+    case 'importTrace':
+      post({ type: 'importTrace' });
+      break;
     default:
       break;
   }
+});
+
+callRootEl.addEventListener('change', () => {
+  callRoot = callRootEl.value;
+  renderCall();
 });
 
 window.addEventListener('message', (event: MessageEvent<Record<string, unknown>>) => {
@@ -151,6 +218,44 @@ window.addEventListener('message', (event: MessageEvent<Record<string, unknown>>
       guideNeedsSetup = Boolean(message.setup);
       renderGuide();
       break;
+    case 'tab':
+      if (message.tab === 'map' || message.tab === 'call' || message.tab === 'trace') {
+        setActiveTab(message.tab, false);
+      }
+      break;
+    case 'callLoading':
+      callLoading = true;
+      callError = '';
+      renderCall();
+      break;
+    case 'callGraph':
+      callGraph = message.graph as CallGraph;
+      callLoading = false;
+      callError = '';
+      callRoot = callGraph.focus ?? callGraph.roots[0] ?? '';
+      renderCall();
+      break;
+    case 'callError':
+      callLoading = false;
+      callError = typeof message.message === 'string' ? message.message : '调用链构建失败';
+      renderCall();
+      break;
+    case 'traceLoading':
+      traceLoading = true;
+      traceError = '';
+      renderTrace();
+      break;
+    case 'trace':
+      trace = message.model as TraceModel;
+      traceLoading = false;
+      traceError = '';
+      renderTrace();
+      break;
+    case 'traceError':
+      traceLoading = false;
+      traceError = typeof message.message === 'string' ? message.message : '运行轨迹导入失败';
+      renderTrace();
+      break;
     case 'copied':
       copyLabel.textContent = '已复制';
       window.setTimeout(() => {
@@ -182,6 +287,187 @@ function renderAll(): void {
     graphEl.innerHTML = '<div class="rm-empty">正在扫描工作区…</div>';
   }
   renderGuide();
+  renderTabs();
+  renderCall();
+  renderTrace();
+}
+
+function setActiveTab(tab: 'map' | 'call' | 'trace', notify: boolean): void {
+  activeTab = tab;
+  renderTabs();
+  if (notify) post({ type: 'tab', tab });
+}
+
+function renderTabs(): void {
+  for (const tab of tabs) {
+    tab.classList.toggle('active', tab.dataset.tab === activeTab);
+  }
+  for (const name of ['map', 'call', 'trace']) {
+    document.getElementById(`view-${name}`)?.classList.toggle('active', name === activeTab);
+  }
+  viewTitleEl.textContent =
+    activeTab === 'map' ? '仓库地图' : activeTab === 'call' ? '调用链' : '运行轨迹';
+  shellEl?.classList.toggle('tab-map', activeTab === 'map');
+  shellEl?.classList.toggle('tab-call', activeTab === 'call');
+  shellEl?.classList.toggle('tab-trace', activeTab === 'trace');
+}
+
+function renderCall(): void {
+  const options = callGraph
+    ? [...new Set([callGraph.focus, ...callGraph.roots].filter(Boolean))]
+    : [];
+  callRootEl.innerHTML = options
+    .map((id) => {
+      const node = callGraph?.nodes.find((candidate) => candidate.id === id);
+      return node
+        ? `<option value="${escapeHtml(node.id)}" ${node.id === callRoot ? 'selected' : ''}>${escapeHtml(node.qualifiedName)} · ${escapeHtml(node.file)}:${node.line}</option>`
+        : '';
+    })
+    .join('');
+
+  if (callLoading) {
+    callBodyEl.innerHTML = '<div class="rm-empty">正在解析函数定义和调用关系…</div>';
+    return;
+  }
+  if (callError) {
+    callBodyEl.innerHTML = `<div class="rm-error">${escapeHtml(callError)}</div>`;
+    return;
+  }
+  if (!callGraph) {
+    callBodyEl.innerHTML = `
+      <div class="rm-empty rm-call-empty">
+        <p>调用链会解析函数／方法定义、import 和 <code>self.attr.method()</code> 的类型，生成可点击的静态调用树。</p>
+        <button class="rm-btn rm-primary" type="button" data-action="buildCall">构建调用链</button>
+      </div>`;
+    return;
+  }
+
+  if (!callRoot || !callGraph.nodes.some((node) => node.id === callRoot)) {
+    callRoot = callGraph.focus ?? callGraph.roots[0] ?? '';
+  }
+
+  const byId = new Map(callGraph.nodes.map((node) => [node.id, node]));
+  const outgoing = new Map<string, Array<{ to: string; line: number }>>();
+  for (const edge of callGraph.edges) {
+    const list = outgoing.get(edge.from) ?? [];
+    list.push({ to: edge.to, line: edge.line });
+    outgoing.set(edge.from, list);
+  }
+
+  const rows: string[] = [];
+  const stack = new Set<string>();
+  let count = 0;
+
+  const walk = (id: string, depth: number): void => {
+    if (count >= 180 || depth > 6) return;
+    const node = byId.get(id);
+    if (!node) return;
+    count += 1;
+    const cyclic = stack.has(id);
+    rows.push(callRowMarkup(node, depth, cyclic));
+    if (cyclic) return;
+
+    stack.add(id);
+    for (const edge of outgoing.get(id) ?? []) walk(edge.to, depth + 1);
+    stack.delete(id);
+  };
+
+  walk(callRoot, 0);
+  const root = byId.get(callRoot);
+  callBodyEl.innerHTML = `
+    <div class="rm-call-summary">
+      <span class="rm-pill">${callGraph.nodes.length} 个函数</span>
+      <span class="rm-pill">${callGraph.edges.length} 条调用</span>
+      <span class="rm-pill">${count} 行展开</span>
+      <span class="rm-faint">静态推演 · 最多 6 层 · 点击跳源码</span>
+    </div>
+    <div class="rm-call-list">${rows.join('')}</div>
+    ${root ? `<div class="rm-call-note">根节点：<code>${escapeHtml(root.qualifiedName)}</code> · ${escapeHtml(root.file)}:${root.line}</div>` : ''}
+  `;
+}
+
+function callRowMarkup(node: CallNode, depth: number, cyclic: boolean): string {
+  return `
+    <button class="rm-call-row kind-${node.kind}" type="button" data-path="${escapeHtml(node.file)}" data-line="${node.line}" style="--depth:${depth}">
+      <span class="rm-call-branch">${depth === 0 ? '●' : '└'}</span>
+      <span class="rm-call-name">${escapeHtml(node.qualifiedName)}</span>
+      <span class="rm-call-file">${escapeHtml(node.file)}:${node.line}</span>
+      ${cyclic ? '<span class="rm-call-cycle">↻ 循环</span>' : ''}
+    </button>`;
+}
+
+function renderTrace(): void {
+  if (traceLoading) {
+    traceBodyEl.innerHTML = '<div class="rm-empty">正在解析 trace…</div>';
+    return;
+  }
+  if (traceError) {
+    traceBodyEl.innerHTML = `<div class="rm-error">${escapeHtml(traceError)}</div>`;
+    return;
+  }
+  if (!trace) {
+    traceBodyEl.innerHTML = `
+      <div class="rm-empty rm-trace-empty">
+        <p>先生成一份 Chrome trace，再导入这里。VizTracer 适合 Python/PyTorch：</p>
+        <pre><code>pip install viztracer
+viztracer -o trace.json train.py</code></pre>
+        <p>PyTorch Profiler 导出的 <code>chrome_trace.json</code> 也可以直接导入。</p>
+        <button class="rm-btn rm-primary" type="button" data-action="importTrace">导入 trace.json</button>
+      </div>`;
+    return;
+  }
+
+  const rows: string[] = [];
+  let count = 0;
+  const total = Math.max(trace.durationMs, 0.001);
+  const walk = (nodes: TraceNode[], depth: number): void => {
+    for (const node of nodes) {
+      if (count >= 500) return;
+      count += 1;
+      const width = Math.min(100, Math.max(0.8, (node.durationMs / total) * 100));
+      const offset = Math.min(99, Math.max(0, (node.startMs / total) * 100));
+      rows.push(`
+        <button class="rm-trace-row" type="button" ${node.file ? `data-path="${escapeHtml(node.file)}" data-line="${node.line ?? 1}"` : ''} style="--depth:${Math.min(depth, 10)}">
+          <span class="rm-trace-name">${escapeHtml(node.name)}</span>
+          <span class="rm-trace-bar"><i style="left:${offset.toFixed(1)}%;width:${width.toFixed(1)}%"></i></span>
+          <span class="rm-trace-time">${formatMs(node.durationMs)}</span>
+          <span class="rm-trace-file">${node.file ? `${escapeHtml(basename(node.file))}:${node.line ?? '?'}` : ''}</span>
+        </button>`);
+      walk(node.children, depth + 1);
+    }
+  };
+  walk(trace.roots, 0);
+
+  const slowest = trace.slowest
+    .slice(0, 5)
+    .map(
+      (node) => `
+      <button class="rm-slow-row" type="button" ${node.file ? `data-path="${escapeHtml(node.file)}" data-line="${node.line ?? 1}"` : ''}>
+        <span>${escapeHtml(node.name)}</span><b>${formatMs(node.durationMs)}</b>
+      </button>`,
+    )
+    .join('');
+
+  traceBodyEl.innerHTML = `
+    <div class="rm-call-summary">
+      <span class="rm-pill">${trace.totalEvents} 个事件</span>
+      <span class="rm-pill">${formatMs(trace.durationMs)}</span>
+      <span class="rm-pill">${trace.threads.length} 个线程</span>
+      <span class="rm-faint">${escapeHtml(trace.fileName)}${trace.truncated ? ' · 已截断' : ''}</span>
+    </div>
+    <div class="rm-trace-layout">
+      <div class="rm-trace-timeline">${rows.join('') || '<div class="rm-empty">没有可显示的事件。</div>'}</div>
+      <aside class="rm-slowest">
+        <h3>最慢的调用</h3>
+        ${slowest || '<span class="rm-faint">没有数据</span>'}
+      </aside>
+    </div>`;
+}
+
+function formatMs(value: number): string {
+  if (value >= 1000) return `${(value / 1000).toFixed(2)} s`;
+  if (value >= 1) return `${value.toFixed(1)} ms`;
+  return `${(value * 1000).toFixed(0)} µs`;
 }
 
 function summaryMarkup(): string {
